@@ -70,6 +70,7 @@ SOLAR_OS_BOARD_KEY_PULL_DOWN = "0"
 SOLAR_OS_BOARD_UART_PORT = "UART_NUM_0"
 SOLAR_OS_BOARD_PIN_UART_TX = "GPIO_NUM_43"
 SOLAR_OS_BOARD_PIN_UART_RX = "GPIO_NUM_44"
+SOLAR_OS_CARDKB_FALLBACK_BUS = '"i2c0"'
 WS_RLCD_BOARD_NAME = "SOLAR_OS_BOARD_NAME"
 WS_RLCD_MODULE_NAME = "SOLAR_OS_BOARD_MODULE_NAME"
 WS_RLCD_DISPLAY_CONTROLLER = "SOLAR_OS_BOARD_DISPLAY_CONTROLLER"
@@ -132,13 +133,13 @@ scl = 14
 speed_hz = "SOLAR_OS_BUS_I2C_DEFAULT_SPEED_HZ"
 
 [[buses]]
-name = "uart0"
-protocol = "uart"
-sharing = "exclusive"
-port = "UART_NUM_0"
-tx = 43
-rx = 44
-baud_rate = "SOLAR_OS_BUS_UART_DEFAULT_BAUD_RATE"
+name = "i2c1"
+protocol = "i2c"
+sharing = "shared"
+port = "I2C_NUM_1"
+sda = 43
+scl = 44
+speed_hz = "SOLAR_OS_BUS_I2C_DEFAULT_SPEED_HZ"
 
 [[devices]]
 driver = "st7305"
@@ -169,6 +170,11 @@ bindings = { i2c = "i2c0", i2s = 0, mclk = 16, bck = 9, ws = 45, din = 10, dout 
 driver = "sdmmc"
 name = "storage0"
 bindings = { clk = 38, cmd = 21, d0 = 39 }
+
+[[devices]]
+driver = "cardkb"
+name = "keyboard0"
+bindings = { i2c = "i2c1", addr = 0x5f }
 
 [connector]
 title = "2x8 expansion header"
@@ -422,12 +428,12 @@ role = "display reset"
 [[pins]]
 gpio = 43
 policy = "releasable"
-role = "UART TX"
+role = "header TXD / CardKB SDA"
 expansion = true
 [[pins]]
 gpio = 44
 policy = "releasable"
-role = "UART RX"
+role = "header RXD / CardKB SCL"
 expansion = true
 [[pins]]
 gpio = 45

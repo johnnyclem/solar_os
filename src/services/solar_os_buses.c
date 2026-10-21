@@ -719,14 +719,17 @@ static esp_err_t start_i2c_locked(size_t bus_index)
         .scl_pin = (gpio_num_t)config->scl_pin,
         .speed_hz = config->speed_hz,
     };
-    esp_err_t ret;
+    esp_err_t ret = ESP_ERR_INVALID_STATE;
     if (buses[bus_index].origin == SOLAR_OS_BUS_ORIGIN_BOARD) {
         ret = i2c_bus_init_config(&driver_config);
         if (ret == ESP_OK) {
             buses_i2c_handles[bus_index] = i2c_bus_get_handle();
             buses_initialized_here[bus_index] = false;
         }
-    } else {
+    }
+    /* The singleton owns the first board bus. A second board bus, and every
+     * runtime bus, gets its own master on its configured port. */
+    if (ret == ESP_ERR_INVALID_STATE) {
         ret = i2c_bus_start_config(&driver_config,
                                    false,
                                    &buses_i2c_handles[bus_index],
@@ -1551,6 +1554,48 @@ esp_err_t solar_os_bus_i2c_set_speed(const char *name, uint32_t speed_hz)
     }
     xSemaphoreGive(buses_mutex);
     xSemaphoreGive(bus_mutex);
+    return ret;
+}
+
+esp_err_t solar_os_bus_i2c_swap_pins(const char *name)
+{
+    if (!name_valid(name)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    esp_err_t ret = solar_os_buses_init();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    xSemaphoreTake(buses_mutex, portMAX_DELAY);
+    const int found = find_bus_index_locked(name);
+    if (found < 0 || buses[found].protocol != SOLAR_OS_BUS_PROTOCOL_I2C) {
+        xSemaphoreGive(buses_mutex);
+        return ESP_ERR_NOT_FOUND;
+    }
+    const size_t bus_index = (size_t)found;
+    if (!buses_initialized_here[bus_index] ||
+        !buses[bus_index].ready ||
+        lease_count_locked(bus_index) != 1U ||
+        bus_refs[bus_index] != 0U) {
+        xSemaphoreGive(buses_mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ret = stop_i2c_locked(bus_index);
+    if (ret == ESP_OK) {
+        const int sda = buses[bus_index].config.i2c.sda_pin;
+        buses[bus_index].config.i2c.sda_pin = buses[bus_index].config.i2c.scl_pin;
+        buses[bus_index].config.i2c.scl_pin = sda;
+        ret = start_i2c_locked(bus_index);
+        if (ret != ESP_OK) {
+            const int swapped_sda = buses[bus_index].config.i2c.sda_pin;
+            buses[bus_index].config.i2c.sda_pin = buses[bus_index].config.i2c.scl_pin;
+            buses[bus_index].config.i2c.scl_pin = swapped_sda;
+            (void)start_i2c_locked(bus_index);
+        }
+    }
+    xSemaphoreGive(buses_mutex);
     return ret;
 }
 

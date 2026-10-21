@@ -103,6 +103,41 @@ static esp_err_t parse_bindings(const solar_os_expansion_binding_t *bindings,
         : ESP_ERR_INVALID_ARG;
 }
 
+static esp_err_t probe_keyboard(char *i2c_bus, size_t i2c_bus_len, uint8_t address)
+{
+    const esp_err_t primary = solar_os_bus_i2c_probe(i2c_bus, address);
+    if (primary == ESP_OK) {
+        return ESP_OK;
+    }
+    if (primary != ESP_ERR_NOT_FOUND) {
+        return primary;
+    }
+
+    if (solar_os_bus_i2c_swap_pins(i2c_bus) == ESP_OK) {
+        const esp_err_t swapped = solar_os_bus_i2c_probe(i2c_bus, address);
+        if (swapped == ESP_OK) {
+            ESP_LOGI(TAG, "CardKB answered on %s with SDA and SCL swapped", i2c_bus);
+            return ESP_OK;
+        }
+        (void)solar_os_bus_i2c_swap_pins(i2c_bus);
+        if (swapped != ESP_ERR_NOT_FOUND) {
+            return swapped;
+        }
+    }
+
+#ifdef SOLAR_OS_CARDKB_FALLBACK_BUS
+    if (strcmp(i2c_bus, SOLAR_OS_CARDKB_FALLBACK_BUS) != 0 &&
+        solar_os_bus_i2c_probe(SOLAR_OS_CARDKB_FALLBACK_BUS, address) == ESP_OK) {
+        strlcpy(i2c_bus, SOLAR_OS_CARDKB_FALLBACK_BUS, i2c_bus_len);
+        ESP_LOGI(TAG, "CardKB answered on %s", i2c_bus);
+        return ESP_OK;
+    }
+#else
+    (void)i2c_bus_len;
+#endif
+    return ESP_ERR_NOT_FOUND;
+}
+
 static void cardkb_worker(void *arg)
 {
     solar_os_cardkb_device_t *device = arg;
@@ -181,7 +216,7 @@ esp_err_t solar_os_cardkb_attach(const char *name,
                                        &address),
                         TAG,
                         "invalid bindings");
-    ESP_RETURN_ON_ERROR(solar_os_bus_i2c_probe(i2c_bus, address),
+    ESP_RETURN_ON_ERROR(probe_keyboard(i2c_bus, sizeof(i2c_bus), address),
                         TAG,
                         "CardKB not found");
 

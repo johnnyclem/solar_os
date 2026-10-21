@@ -622,6 +622,34 @@ class FlavorPackagesTest(unittest.TestCase):
         self.assertTrue(full_groups["writing"])
         for package in ("app_reader", "app_writer", "app_files", "app_notes"):
             self.assertTrue(full_packages[package], package)
+        self.assertTrue(full_groups["arcade"])
+        self.assertTrue(full_packages["app_snake"])
+        self.assertTrue(full_packages["app_tetris"])
+        for package in (
+            "app_sokoban",
+            "app_mines",
+            "app_scorched",
+            "app_boulders",
+            "app_pipes",
+            "app_rogue",
+            "app_moria",
+        ):
+            self.assertTrue(full_packages[package], package)
+        self.assertFalse(full_packages["app_invaders"])
+        self.assertEqual(
+            set(self.catalog.group_defs["arcade"].members),
+            {
+                "app_snake",
+                "app_tetris",
+                "app_sokoban",
+                "app_mines",
+                "app_scorched",
+                "app_boulders",
+                "app_pipes",
+                "app_rogue",
+                "app_moria",
+            },
+        )
 
     def test_retro_is_a_strict_superset_of_full(self):
         _, _, full_groups, full_packages = self.resolve("full")

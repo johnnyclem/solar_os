@@ -49,7 +49,7 @@ while remaining blocked from runtime use.
 
 | Board | Physical expansion signals | Runtime GPIO and PWM | Runtime ADC | Connector restrictions |
 | --- | --- | --- | --- | --- |
-| Waveshare ESP32-S3-RLCD-4.2 | GPIO0-GPIO3, GPIO13, GPIO14, GPIO17-GPIO20, GPIO43, GPIO44 | GPIO1-GPIO3, GPIO17 | GPIO1-GPIO3, GPIO17 | GPIO0 is BOOT; GPIO13/GPIO14 are I2C; GPIO18 is KEY; GPIO19/GPIO20 are native USB; GPIO43/GPIO44 belong to `uart0` by default. |
+| Waveshare ESP32-S3-RLCD-4.2 | GPIO0-GPIO3, GPIO13, GPIO14, GPIO17-GPIO20, GPIO43, GPIO44 | GPIO1-GPIO3, GPIO17 | GPIO1-GPIO3, GPIO17 | GPIO0 is BOOT; GPIO13/GPIO14 are onboard I2C; GPIO18 is KEY; GPIO19/GPIO20 are native USB; GPIO43/GPIO44 are CardKB `i2c1`. |
 | ESP32-S3 Display 4.0-inch (FNK0104S) | GPIO2, GPIO3, GPIO14-GPIO16, GPIO21, GPIO43, GPIO44 | GPIO2, GPIO3, GPIO14, GPIO21 | GPIO2, GPIO3, GPIO14 | GPIO15/GPIO16 are shared I2C; GPIO43/GPIO44 belong to `uart0`; GPIO4 is fixed audio MCLK, not a connector GPIO. |
 | Elecrow CrowPanel ESP32-S3 4.2-inch E-paper | GPIO3, GPIO8, GPIO9, GPIO14-GPIO21, GPIO38 | GPIO8, GPIO9, GPIO14-GPIO21, GPIO38 | GPIO8, GPIO9, GPIO14-GPIO20 | GPIO3 is physically exposed but blocked as a strapping pin. |
 | ESP32-S3-DevKitC-1-N16R8 | ESP32-S3 signals broken out on the DevKitC headers | GPIO1, GPIO2, GPIO4-GPIO7, GPIO10, GPIO14-GPIO18, GPIO21, GPIO39-GPIO42, GPIO47 | GPIO1, GPIO2, GPIO4-GPIO7, GPIO10, GPIO14-GPIO18 | GPIO0 is BOOT/KEY; GPIO3/GPIO45/GPIO46 are other strapping pins; GPIO19/GPIO20 are native USB; GPIO35-GPIO37 are Octal PSRAM; GPIO38/GPIO48 are reserved for either RGB LED revision; GPIO43/GPIO44 are `uart0`. |
@@ -66,7 +66,7 @@ voltage and current requirements before connecting it.
 
 | Board | Board-defined buses | Runtime-routable buses | Notes |
 | --- | --- | --- | --- |
-| Waveshare ESP32-S3-RLCD-4.2 | `i2c0`: SDA GPIO13, SCL GPIO14; `spi0`: SCK GPIO11, MOSI GPIO12, CS GPIO40; `uart0`: TX GPIO43, RX GPIO44 | I2C on `i2c1`, SPI on `spi3`, UART on `uart1`/`uart2`, or 1-Wire, using approved free pins | `spi0` is the fixed internal display bus; its pins are not expansion pins. |
+| Waveshare ESP32-S3-RLCD-4.2 | `i2c0`: SDA GPIO13, SCL GPIO14; `i2c1`: SDA GPIO43, SCL GPIO44; `spi0`: SCK GPIO11, MOSI GPIO12, CS GPIO40 | SPI on `spi3`, UART on `uart1`/`uart2`, or 1-Wire, using approved free pins | `i2c1` is the fixed CardKB bus on the header pins labeled TXD and RXD. `spi0` is the fixed internal display bus; its pins are not expansion pins. |
 | ESP32-S3 Display 4.0-inch (FNK0104S) | `i2c0`: SDA GPIO16, SCL GPIO15; `spi0`: SCK GPIO12, MOSI GPIO11, CS GPIO10; `uart0`: TX GPIO43, RX GPIO44 | I2C on `i2c1`, SPI on `spi3`, UART on `uart1`/`uart2`, I2S on `i2s1`, or 1-Wire, using approved free pins | The I2C connector shares `i2c0` with touch and audio control. `spi0` is the fixed internal LCD bus. |
 | Elecrow CrowPanel ESP32-S3 4.2-inch E-paper | `spi0`: SCK GPIO12, MOSI GPIO11, CS GPIO45; `uart0`: TX GPIO43, RX GPIO44 | I2C on `i2c0`/`i2c1`, SPI on `spi3`, UART on `uart1`/`uart2`, or named 1-Wire, using approved free pins | `spi0` is the fixed internal SSD1683 bus. SPI3 is shared with microSD and is available for a runtime expansion bus only while the SD card is unmounted. |
 | ESP32-S3-DevKitC-1-N16R8 | `i2c0`: SDA GPIO8, SCL GPIO9; `spi0`: SCK GPIO12, MISO GPIO13, MOSI GPIO11, CS GPIO4/GPIO10/GPIO5/GPIO6/GPIO7; `uart0`: TX GPIO43, RX GPIO44 | I2C on `i2c1`, SPI on `spi3`, UART on `uart1`/`uart2`, or 1-Wire, using approved free pins | The board-defined `spi0` is the normal expansion SPI bus. |
@@ -162,17 +162,8 @@ the latest matching incoming CC value while the MIDI job runs. The controls job
 can normalize its `0..127` range and bind it to one or more application
 parameters without consuming messages from MIDI subscribers.
 
-On the Waveshare board, `uart0` owns the releasable GPIO43/GPIO44 pair while it
-is attached. From a display or other non-`uart0` shell, detach it before reusing
-those pins and attach it again after the temporary bus is removed:
-
-```text
-expansion bus detach uart0
-expansion bus create uart uart1 port=uart1 tx=gpio43 rx=gpio44
-expansion bus remove uart1
-expansion bus attach uart0
-```
-
+On the Waveshare board, `i2c1` owns header GPIO43 (SDA) and GPIO44 (SCL) for
+the fixed CardKB. Runtime UART uses `uart1` or `uart2` on other approved pins.
 Detaching the port that carries the current shell fails as busy, so the shell
 cannot disconnect itself accidentally.
 
@@ -248,6 +239,7 @@ Run `expansion drivers` on the device to see the exact compiled set.
 | `cvbs-pal` | 384x288 or 320x200 monochrome PAL composite output | `i2s=i2s0 out=gpio25` | Classic ESP32 driver; ESP32-WROVER v3.0 registers it as fixed `display0`. |
 | `vga32` | Build-selected RGB222 VGA output | `r0=<pin> r1=<pin> g0=<pin> g1=<pin> b0=<pin> b1=<pin> hsync=<pin> vsync=<pin>` | Classic ESP32 driver; claims I2S1 and TTGO VGA32 registers it as fixed `display0`. |
 | `cardkb` | M5Stack Unit CardKB | `i2c=<bus> addr=0x5f` | Polls released keys into the shared input service for shells and foreground apps. |
+| `cardkb2` | M5Stack Unit CardKB2 UART QWERTY | `uart=<bus>` | Reads 115200 8N1 key frames and publishes press/release events. Factory I2C mode uses `cardkb`. |
 | `gpio-keys` | Active-low pull-up buttons | One or more `key:<name>=<gpio>` bindings | Publishes press/release keyboard events and releases all GPIO claims on detach. |
 | `ps2-keyboard` | PS/2 scan-code set 2 keyboard | `ps2=<bus>` | Publishes canonical keyboard press/release events from an exclusive PS/2 bus. |
 | `ps2-mouse` | Standard three-button PS/2 mouse | `ps2=<bus>` | Enables reporting and publishes relative pointer motion and button events. |
@@ -435,6 +427,28 @@ shared SolarOS input path. CardKB reports one value after release, so host-side
 key repeat is not available. Its values 128 through 175 are private Fn
 combinations and are ignored instead of being confused with SolarOS logical
 keys.
+
+### M5Stack Unit CardKB2 UART keyboard
+
+CardKB2 leaves the factory in I2C mode at `0x5F`, which `cardkb` already
+reads. UART mode is selected with Fn+Sym+2 and is saved on the keyboard. Its
+Grove cable is 4-wire: black is ground, red is 5 V, yellow is SDA in I2C mode
+and the keyboard RX input in UART mode, and white is SCL in I2C mode and the
+keyboard TX output in UART mode. On the Waveshare ESP32-S3-RLCD-4.2 header,
+red goes to VBUS, black to GND, yellow to the pin labeled TXD (GPIO43, SDA),
+and white to the pin labeled RXD (GPIO44, SCL). That board attaches
+`keyboard0` to `i2c1` at boot and also probes the pins labeled SDA and SCL
+(`i2c0`). For UART mode, cross the data wires onto a free UART bus: yellow to
+TX and white to RX.
+
+```text
+expansion attach cardkb2 kbd0 uart=uart1
+input test kbd0
+```
+
+Frames are `AA 03 KEY_ID STATE checksum`. STATE is `01` for press and `02`
+for release. Aa selects one-shot caps, caps lock, or hold-to-shift. Sym
+latches the symbol layer. Fn+1 is Escape, and Fn+D/X/Z/C are the arrow keys.
 
 ### RFM95W on ESP32-S3-DevKitC-1
 

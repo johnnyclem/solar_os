@@ -13,6 +13,7 @@ net = true
 agent = false
 media = false
 games = false
+arcade = false
 python = false
 lua = false
 writing = true

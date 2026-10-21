@@ -46,6 +46,9 @@ size_t solar_os_bus_release_owner(const char *owner);
 
 esp_err_t solar_os_bus_i2c_set_speed(const char *name, uint32_t speed_hz);
 esp_err_t solar_os_bus_i2c_probe(const char *name, uint8_t address);
+/* Swap SDA and SCL on a private I2C master this service created. The bus must
+ * have one lease and no in-flight transfer. The GPIO claims stay the same. */
+esp_err_t solar_os_bus_i2c_swap_pins(const char *name);
 esp_err_t solar_os_bus_i2c_receive(const char *name,
                                    uint8_t address,
                                    uint8_t *data,

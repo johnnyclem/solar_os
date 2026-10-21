@@ -148,7 +148,7 @@ The current tree includes these board targets:
 
 | Target | PlatformIO env | Hardware | Highlights |
 | --- | --- | --- | --- |
-| `waveshare_esp32_s3_rlcd_4_2` | `waveshare_esp32_s3_rlcd_4_2` | Waveshare ESP32-S3-RLCD-4.2 | Primary ST7305 reflective display target with SDMMC, CDC, UART, RTC, SHTC3, battery ADC, ES8311/ES7210 audio, expansion I2C/SPI/UART/GPIO/ADC/PWM, and runtime-routable SPI3 on GPIO1/GPIO2/GPIO3/GPIO17. |
+| `waveshare_esp32_s3_rlcd_4_2` | `waveshare_esp32_s3_rlcd_4_2` | Waveshare ESP32-S3-RLCD-4.2 | Primary ST7305 reflective display target with SDMMC, CDC, UART, a fixed I2C CardKB on header GPIO43/GPIO44, RTC, SHTC3, battery ADC, ES8311/ES7210 audio, expansion I2C/SPI/UART/GPIO/ADC/PWM, and runtime-routable SPI3 on GPIO1/GPIO2/GPIO3/GPIO17. |
 | `freenove_esp32_s3_display_4_0` | `freenove_esp32_s3_display_4_0` | Freenove ESP32-S3 Display 4.0-inch (FNK0104S) | Integrated 480x320 ST7796 display, FT6336 capacitive pointer, ES8311 speaker and microphone, four-bit SDMMC, battery ADC, native USB CDC, and UART/I2C/GPIO expansion connectors. |
 | `elecrow_crowpanel_esp32_s3_4_2_epaper` | `elecrow_crowpanel_esp32_s3_4_2_epaper` | Elecrow CrowPanel ESP32-S3 4.2-inch E-paper | ESP32-S3-WROOM-1-N8R8 target with a 400x300 SSD1683 e-paper display, microSD over SDSPI, CH340C/UART console, rotary/menu/exit controls, status LED, Wi-Fi, BLE, and expansion I2C/SPI/UART/1-Wire/GPIO/ADC/PWM. |
 | `odroid_go` | `odroid_go` | Hardkernel ODROID-GO | Classic ESP32 target with ILI9341 display, SD over VSPI/SDSPI, battery ADC, ESP32 DAC speaker, buttons, ADC D-pad, status LED, display brightness, expansion SPI/UART/GPIO/PWM, and runtime GPIO4/GPIO15. |
@@ -786,20 +786,17 @@ The bus remains idle until a device attaches. After detaching all devices,
 chip-select pins. The board-defined
 I2C bus on GPIO13/GPIO14 is fixed and is never remapped by this operation.
 
-The spare I2C/UART controllers and free pins can instead form runtime I2C,
-UART, or named 1-Wire buses:
+`i2c0` is the onboard bus on GPIO13/GPIO14. `i2c1` is the CardKB bus: header
+TXD GPIO43 is SDA and header RXD GPIO44 is SCL. Both I2C controllers are
+assigned, so a runtime I2C bus is not available on this target. Free pins can
+still form a runtime UART or a named 1-Wire bus:
 
 ```text
-expansion bus create i2c i2c1 port=i2c1 sda=gpio1 scl=gpio2
 expansion bus create onewire onewire0 pin=gpio3
 expansion bus create uart uart1 port=uart1 tx=gpio1 rx=gpio2
 ```
 
-The board-defined `uart0` on GPIO43/GPIO44 is non-removable but detachable.
-From a display or other non-`uart0` shell, `expansion bus detach uart0` releases those
-pins for a temporary runtime bus. Remove the temporary descriptor and run
-`expansion bus attach uart0` to restore the board UART. A UART carrying an active port
-owner cannot be detached.
+A UART carrying an active port owner cannot be detached.
 
 For the N16R8 module, GPIO35, GPIO36, and GPIO37 are reserved by Octal PSRAM and
 must not be exposed as runtime GPIO. The generic DevKitC target also reserves

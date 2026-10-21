@@ -4,7 +4,7 @@ title = "Application reference"
 section = "app"
 summary = "Usage, controls, and examples for every foreground application"
 aliases = ["applications"]
-keywords = "apps applications foreground controls usage examples reader writer markdown less files edit hexedit binary agent calculator calc graph webradio radio mp3 function generator funcgen waveform sweep"
+keywords = "apps applications foreground controls usage examples reader writer markdown less files edit hexedit binary agent calculator calc graph webradio radio mp3 function generator funcgen waveform sweep snake tetris sokoban mines scorched boulders pipes rogue moria arcade"
 packages_any = []
 +++
 # SolarOS Embedded Apps
@@ -857,6 +857,176 @@ Controls:
 - `Space` or `f` fires.
 - `Esc` or app-exit key exits.
 
+## snake
+
+Classic snake on the graphical display. The snake grows when it eats, speeds up
+as it gets longer, and ends on a wall or its own tail. Filling the board wins.
+The best score lasts until you leave the app.
+
+Usage:
+
+```text
+snake
+```
+
+Controls work with arrow keys and with a CardKB2 in I2C mode, which sends
+letters rather than arrows. `Fn+1` is Esc.
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` turn. Arrow keys turn too.
+- `P` or `Space` pauses.
+- `Q` or `Esc` quits.
+- After a game over, `Space`, `Enter`, or `R` starts again.
+
+## tetris
+
+Classic falling-blocks game. Pieces come from a shuffled bag of seven. Clearing
+lines scores 100, 300, 500, or 800 points times the current level. The level
+increases every 10 lines and gravity speeds up. The next piece is shown beside
+the well when the display is wide enough.
+
+Usage:
+
+```text
+tetris
+```
+
+- `A`/`D` or `H`/`L` move sideways. Left and Right do the same.
+- `S` or `J` or Down soft-drops one row.
+- `W` or `K` or Up rotates clockwise.
+- `Space` hard-drops and locks the piece.
+- `P` pauses.
+- `Q` or `Esc` quits.
+- After a game over, `Space`, `Enter`, or `R` starts again.
+
+## sokoban
+
+Push every crate onto a marked floor. Original rooms, eight of them. A crate
+on a mark turns solid black.
+
+Usage:
+
+```text
+sokoban
+```
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` move and push. Arrows do the same.
+- `U` or Backspace undoes one move.
+- `R` restarts the room.
+- When the room is stored, `Space` or `Enter` opens the next one.
+- `Q` or `Esc` quits.
+
+## mines
+
+A 16 by 12 field with 28 mines. The first open cell is never a mine, and
+empty cells open their neighbors. Flagged cells are skipped by opening.
+
+Usage:
+
+```text
+mines
+```
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` move the cursor.
+- `Space` or `Enter` opens the cell.
+- `F` plants or clears a flag.
+- `Q` or `Esc` quits.
+- After a boom or a clear field, `Space`, `Enter`, or `R` deals again.
+
+## scorched
+
+Two-tank artillery on a random hill. You are the left tank. Angle and power
+set the shot, wind pushes it, and the shell digs a crater. First to three
+wins. The other tank aims for you and misses on purpose sometimes.
+
+Usage:
+
+```text
+scorched
+```
+
+- `A`/`D` or `H`/`L` change the angle.
+- `W`/`S` or `K`/`J` change the power.
+- `Space` or `Enter` fires.
+- `Q` or `Esc` quits.
+- After the match, `Space`, `Enter`, or `R` starts another.
+
+## boulders
+
+Dig dirt, let boulders and gems fall, collect every gem, and step into the
+exit. Rocks settle before the next move. Five original caves.
+
+Usage:
+
+```text
+boulders
+```
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` dig or walk.
+- `R` restarts the cave.
+- After a clear cave, `Space` or `Enter` opens the next one.
+- `Q` or `Esc` quits.
+
+## pipes
+
+Lay the next pipe before the flow arrives. A pipe that does not connect, or
+a run off the board, is a leak. Filling the board wins the round.
+
+Usage:
+
+```text
+pipes
+```
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` move the cursor.
+- `Space` or `Enter` lays the piece shown first in the queue.
+- `Q` or `Esc` quits.
+- After a leak or a full board, `Space`, `Enter`, or `R` starts again.
+
+## rogue
+
+Rooms, corridors, and eight dungeon levels. `@` is you. Letters are
+monsters. `$` is gold, `%` food, `!` a potion, `)` a blade, `[` mail, and
+`*` the amulet. Take the amulet from the bottom and climb back to the
+surface.
+
+Usage:
+
+```text
+rogue
+```
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` move. Walking into a monster attacks.
+- `G` picks up what is under you. Gold is picked up by walking onto it.
+- `E` eats. `q` drinks a potion.
+- `Enter` uses the stair under you. `>` goes down and `<` goes up.
+- `Esc` or `Q` quits.
+- After death or a win, `Space`, `Enter`, or `R` starts a new delve.
+
+## moria
+
+An original dungeon crawl in the Moria tradition. `@` is you. `N` at the
+west-gate gives the quests, and `S` sells food, torches, mail, blades, and
+potions. The mines are generated: upper halls, a captain on a deeper road,
+and a bridge-warden at the bottom. Light burns down as you walk. Returning
+to the gate restores your body. Letter glyphs are creatures, `$` gold, `%`
+food, `!` potions, `(` the lost lamp, `)` a blade, and `[` mail.
+
+This is not a port of Umoria. The map, monsters, and quest text are new.
+
+Usage:
+
+```text
+moria
+```
+
+- `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` move or attack.
+- `G` picks up. `E` eats. `q` drinks.
+- `T` talks to `N` or opens the shop. In the shop, `1` through `5` buy.
+- `V` repeats the current quest.
+- `Enter` climbs the stair under you, or talks when you are beside `N` or `S`.
+- `Esc` closes the shop, and from the map it quits. `Q` quits too.
+- After death or the opened gate, `Space`, `Enter`, or `R` begins again.
+
 ## gameboy
 
 Experimental original Game Boy (DMG) emulator for the Waveshare
@@ -896,6 +1066,9 @@ gameboy <file.gb>
 Controls:
 
 - Arrows control the D-pad.
+- On the CardKB2, `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` are the D-pad. `Z` is A,
+  `X` is B, `Enter` is Start, and Backspace is Select. A held key repeats, so
+  the direction stays down.
 - The physical US-Z key position is A; on a German QWERTZ keyboard this key is
   labeled `Y`. The physical X key is B.
 - `Enter` is Start; `Backspace` or `Delete` is Select.
@@ -1182,14 +1355,26 @@ Controls:
   through the shared SolarOS clipboard.
 - `Ctrl+B`, `Ctrl+I`, and `Ctrl+K` add or remove bold, italic, and link source.
 - `F1` opens formatting for inline code, headings 1–4, bullet or numbered
-  lists, quotes, fenced code, and rules. `Esc` closes the active menu/dialog;
-  from the editor it exits, using the save/discard/cancel prompt when dirty.
+  lists, quotes, fenced code, and rules. `Esc` closes the active menu/dialog.
 - `Ctrl+F` finds text; `Ctrl+R` prompts for find and replacement text.
 - `Ctrl+S` saves, `Ctrl+Z`/`Ctrl+Y` undo and redo, and `Ctrl++`/`Ctrl+-` adjust
   zoom.
-- `Esc` and the app-exit key open the save/discard/cancel prompt when the
-  document is dirty. Writer writes recovery before suspend or stop and resumes
-  in place.
+- The app-exit key opens the save/discard/cancel prompt when the document is
+  dirty. Writer writes recovery before suspend or stop and resumes in place.
+- `Esc` toggles move mode instead of exiting. On CardKB2, `Fn+1` is Esc. The
+  header shows `MOVE` or `SEL`, and the status line reads `Esc moves` while
+  typing. Move mode accepts:
+  - `H`/`J`/`K`/`L` move by character or line. Arrow keys still move in either
+    mode.
+  - `W`/`B` move by word. `0` jumps to the start of the line and `E` to the end.
+  - `G` jumps to the start of the document. Caps+`G` jumps to the end.
+  - `N`/`P` page down and up.
+  - `V` extends the selection with the following movement.
+  - `S` saves, `Q` quits, and `I` returns to typing.
+  - `M` opens the format menu, `F` finds, `R` replaces, `U` undoes, and `Y`
+    redoes. `D` deletes forward. `+` and `-` zoom.
+  - Backspace, Delete, and Enter still edit while moving.
+  - Keys that are not commands are ignored, so move mode does not insert text.
 
 ## scp
 

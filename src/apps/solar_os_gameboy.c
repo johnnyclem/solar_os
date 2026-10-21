@@ -40,7 +40,9 @@
 #endif
 
 #define GAMEBOY_FRAME_PERIOD_US 16743LL
-#define GAMEBOY_INPUT_PULSE_US 140000LL
+/* CardKB2 waits 300 ms before the first repeat, so a press has to
+ * stay down at least that long or the d-pad drops between taps. */
+#define GAMEBOY_INPUT_PULSE_US 340000LL
 #define GAMEBOY_STATS_FRAMES 120U
 #define GAMEBOY_ROM_BANK_BYTES (16U * 1024U)
 #define GAMEBOY_PRESENT_DIVISOR 3U
@@ -496,16 +498,20 @@ static void gameboy_resume(solar_os_context_t *ctx) {
 }
 
 static uint8_t gameboy_button_for_char(uint8_t ch) {
-  if (ch == SOLAR_OS_KEY_RIGHT || ch == SOLAR_OS_KEY_CTRL_RIGHT) {
+  if (ch == SOLAR_OS_KEY_RIGHT || ch == SOLAR_OS_KEY_CTRL_RIGHT || ch == 'd' ||
+      ch == 'D' || ch == 'l' || ch == 'L') {
     return JOYPAD_RIGHT;
   }
-  if (ch == SOLAR_OS_KEY_LEFT || ch == SOLAR_OS_KEY_CTRL_LEFT) {
+  if (ch == SOLAR_OS_KEY_LEFT || ch == SOLAR_OS_KEY_CTRL_LEFT || ch == 'a' ||
+      ch == 'A' || ch == 'h' || ch == 'H') {
     return JOYPAD_LEFT;
   }
-  if (ch == SOLAR_OS_KEY_UP || ch == SOLAR_OS_KEY_CTRL_UP) {
+  if (ch == SOLAR_OS_KEY_UP || ch == SOLAR_OS_KEY_CTRL_UP || ch == 'w' ||
+      ch == 'W' || ch == 'k' || ch == 'K') {
     return JOYPAD_UP;
   }
-  if (ch == SOLAR_OS_KEY_DOWN || ch == SOLAR_OS_KEY_CTRL_DOWN) {
+  if (ch == SOLAR_OS_KEY_DOWN || ch == SOLAR_OS_KEY_CTRL_DOWN || ch == 's' ||
+      ch == 'S' || ch == 'j' || ch == 'J') {
     return JOYPAD_DOWN;
   }
   if (ch == 'z' || ch == 'Z') {
@@ -590,11 +596,12 @@ static void gameboy_press(uint8_t mask, int64_t now_us) {
 }
 
 static bool gameboy_handle_char(solar_os_context_t *ctx, uint8_t ch) {
-  if (ch == SOLAR_OS_KEY_APP_EXIT || ch == SOLAR_OS_KEY_ESCAPE || ch == 'q') {
+  if (ch == SOLAR_OS_KEY_APP_EXIT || ch == SOLAR_OS_KEY_ESCAPE || ch == 'q' ||
+      ch == 'Q') {
     solar_os_context_request_exit(ctx);
     return true;
   }
-  if (ch == 'p') {
+  if (ch == 'p' || ch == 'P') {
     gameboy.paused = !gameboy.paused;
     if (gameboy.paused) {
       solar_os_gameboy_audio_suspend();
@@ -610,7 +617,7 @@ static bool gameboy_handle_char(solar_os_context_t *ctx, uint8_t ch) {
     gameboy.next_frame_us = esp_timer_get_time();
     return true;
   }
-  if (ch == 'r') {
+  if (ch == 'r' || ch == 'R') {
     gb_reset(gameboy.core);
     solar_os_gameboy_audio_reset();
     solar_os_gameboy_video_clear(gameboy.bitmap, SOLAR_OS_GAMEBOY_BITMAP_BYTES);
@@ -679,7 +686,8 @@ static bool gameboy_event(solar_os_context_t *ctx,
       const uint8_t ch = key->key;
       if (key->physical_key == SOLAR_OS_INPUT_PHYSICAL_NONE ||
           ch == SOLAR_OS_KEY_APP_EXIT || ch == SOLAR_OS_KEY_ESCAPE ||
-          ch == 'q' || ch == 'p' || ch == 'r') {
+          ch == 'q' || ch == 'Q' || ch == 'p' || ch == 'P' || ch == 'r' ||
+          ch == 'R') {
         return gameboy_handle_char(ctx, ch);
       }
     }

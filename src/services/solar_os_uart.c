@@ -637,11 +637,12 @@ esp_err_t solar_os_uart_init(void)
     };
 #if SOLAR_OS_PACKAGE_SERVICE_RESOURCES
     solar_os_bus_info_t info;
-    if (solar_os_bus_find(SOLAR_OS_UART_PORT_NAME,
-                          SOLAR_OS_BUS_PROTOCOL_UART,
-                          &info)) {
-        config = info.config.uart;
+    if (!solar_os_bus_find(SOLAR_OS_UART_PORT_NAME,
+                           SOLAR_OS_BUS_PROTOCOL_UART,
+                           &info)) {
+        return ESP_ERR_NOT_FOUND;
     }
+    config = info.config.uart;
 #endif
     solar_os_uart_mode_t mode = SOLAR_OS_UART_MODE_RAW;
     uart_load_config(&config.baud_rate, &mode);

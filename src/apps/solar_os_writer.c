@@ -71,6 +71,8 @@ typedef struct {
     bool discard_on_stop;
     bool exit_after_save;
     bool cursor_visible;
+    bool nav_mode;
+    bool nav_select;
     uint32_t last_tick_ms;
     uint32_t last_edit_ms;
     uint32_t cursor_blink_ms;
@@ -978,6 +980,141 @@ static bool writer_handle_dialog(solar_os_context_t *ctx, uint8_t ch)
     return true;
 }
 
+static bool writer_nav_extend(void)
+{
+    return writer.nav_mode && writer.nav_select;
+}
+
+/* Esc toggles move mode. CardKB2 I2C sends letters, Enter, Backspace, and Esc, not arrows. */
+static void writer_set_nav(bool enabled)
+{
+    writer.nav_mode = enabled;
+    if (!enabled) {
+        writer.nav_select = false;
+    }
+    writer_set_message(enabled ? "hjkl  s save  q quit  i type" : "Esc moves");
+}
+
+static bool writer_handle_nav(solar_os_context_t *ctx, uint8_t ch)
+{
+    const bool select = writer_nav_extend();
+    switch (ch) {
+    case 'i':
+    case 'I':
+        writer_set_nav(false);
+        break;
+    case 'q':
+    case 'Q':
+        writer_request_exit(ctx);
+        break;
+    case 'h':
+    case 'H':
+        writer_set_cursor(solar_os_writer_utf8_prev(&writer.buffer, writer.cursor), select);
+        break;
+    case 'l':
+    case 'L':
+        writer_set_cursor(solar_os_writer_utf8_next(&writer.buffer, writer.cursor), select);
+        break;
+    case 'k':
+    case 'K':
+        writer_move_vertical(-1, select);
+        break;
+    case 'j':
+    case 'J':
+        writer_move_vertical(1, select);
+        break;
+    case 'w':
+    case 'W':
+        writer_set_cursor(solar_os_writer_word_next(&writer.buffer, writer.cursor), select);
+        break;
+    case 'b':
+    case 'B':
+        writer_set_cursor(solar_os_writer_word_prev(&writer.buffer, writer.cursor), select);
+        break;
+    case '0':
+    case '^':
+        writer_set_cursor(writer_line_start(writer.cursor), select);
+        break;
+    case 'e':
+    case 'E':
+    case '$':
+        writer_set_cursor(writer_line_end(writer.cursor), select);
+        break;
+    case 'g':
+        writer_set_cursor(0, select);
+        break;
+    case 'G':
+        writer_set_cursor(solar_os_writer_buffer_length(&writer.buffer), select);
+        break;
+    case 'n':
+    case 'N':
+        writer_page(ctx, true, select);
+        break;
+    case 'p':
+    case 'P':
+        writer_page(ctx, false, select);
+        break;
+    case 's':
+    case 'S':
+        writer_request_save();
+        break;
+    case 'm':
+    case 'M':
+        writer.dialog = WRITER_DIALOG_FORMAT;
+        writer.render_pending = true;
+        break;
+    case 'f':
+    case 'F':
+        writer_begin_dialog(WRITER_DIALOG_FIND, "");
+        break;
+    case 'u':
+    case 'U':
+        if (solar_os_writer_buffer_undo(&writer.buffer, &writer.cursor)) {
+            writer_clear_selection();
+            writer_mark_changed();
+        }
+        break;
+    case 'y':
+    case 'Y':
+        if (solar_os_writer_buffer_redo(&writer.buffer, &writer.cursor)) {
+            writer_clear_selection();
+            writer_mark_changed();
+        }
+        break;
+    case 'd':
+    case 'D':
+        writer_delete(true);
+        break;
+    case 'v':
+    case 'V':
+        writer.nav_select = !writer.nav_select;
+        writer_set_message(writer.nav_select ? "select" : "hjkl  s save  q quit  i type");
+        break;
+    case 'r':
+    case 'R':
+        writer_begin_dialog(WRITER_DIALOG_REPLACE_FIND, "");
+        break;
+    case '+':
+    case '=':
+        if (writer.zoom < WRITER_MAX_ZOOM) {
+            writer.zoom++;
+            writer.layout_pending = true;
+            writer.render_pending = true;
+        }
+        break;
+    case '-':
+        if (writer.zoom > 0) {
+            writer.zoom--;
+            writer.layout_pending = true;
+            writer.render_pending = true;
+        }
+        break;
+    default:
+        break;
+    }
+    return true;
+}
+
 static bool writer_handle_char(solar_os_context_t *ctx, uint8_t ch)
 {
     writer_wake_cursor();
@@ -997,13 +1134,13 @@ static bool writer_handle_char(solar_os_context_t *ctx, uint8_t ch)
 
     switch (ch) {
     case SOLAR_OS_KEY_ESCAPE:
-        writer_request_exit(ctx);
+        writer_set_nav(!writer.nav_mode);
         break;
     case SOLAR_OS_KEY_LEFT:
-        writer_set_cursor(solar_os_writer_utf8_prev(&writer.buffer, writer.cursor), false);
+        writer_set_cursor(solar_os_writer_utf8_prev(&writer.buffer, writer.cursor), writer_nav_extend());
         break;
     case SOLAR_OS_KEY_RIGHT:
-        writer_set_cursor(solar_os_writer_utf8_next(&writer.buffer, writer.cursor), false);
+        writer_set_cursor(solar_os_writer_utf8_next(&writer.buffer, writer.cursor), writer_nav_extend());
         break;
     case SOLAR_OS_KEY_SHIFT_LEFT:
         writer_set_cursor(solar_os_writer_utf8_prev(&writer.buffer, writer.cursor), true);
@@ -1012,10 +1149,10 @@ static bool writer_handle_char(solar_os_context_t *ctx, uint8_t ch)
         writer_set_cursor(solar_os_writer_utf8_next(&writer.buffer, writer.cursor), true);
         break;
     case SOLAR_OS_KEY_CTRL_LEFT:
-        writer_set_cursor(solar_os_writer_word_prev(&writer.buffer, writer.cursor), false);
+        writer_set_cursor(solar_os_writer_word_prev(&writer.buffer, writer.cursor), writer_nav_extend());
         break;
     case SOLAR_OS_KEY_CTRL_RIGHT:
-        writer_set_cursor(solar_os_writer_word_next(&writer.buffer, writer.cursor), false);
+        writer_set_cursor(solar_os_writer_word_next(&writer.buffer, writer.cursor), writer_nav_extend());
         break;
     case SOLAR_OS_KEY_CTRL_SHIFT_LEFT:
         writer_set_cursor(solar_os_writer_word_prev(&writer.buffer, writer.cursor), true);
@@ -1023,21 +1160,21 @@ static bool writer_handle_char(solar_os_context_t *ctx, uint8_t ch)
     case SOLAR_OS_KEY_CTRL_SHIFT_RIGHT:
         writer_set_cursor(solar_os_writer_word_next(&writer.buffer, writer.cursor), true);
         break;
-    case SOLAR_OS_KEY_UP: writer_move_vertical(-1, false); break;
-    case SOLAR_OS_KEY_DOWN: writer_move_vertical(1, false); break;
+    case SOLAR_OS_KEY_UP: writer_move_vertical(-1, writer_nav_extend()); break;
+    case SOLAR_OS_KEY_DOWN: writer_move_vertical(1, writer_nav_extend()); break;
     case SOLAR_OS_KEY_SHIFT_UP: writer_move_vertical(-1, true); break;
     case SOLAR_OS_KEY_SHIFT_DOWN: writer_move_vertical(1, true); break;
-    case SOLAR_OS_KEY_PAGE_UP: writer_page(ctx, false, false); break;
-    case SOLAR_OS_KEY_PAGE_DOWN: writer_page(ctx, true, false); break;
+    case SOLAR_OS_KEY_PAGE_UP: writer_page(ctx, false, writer_nav_extend()); break;
+    case SOLAR_OS_KEY_PAGE_DOWN: writer_page(ctx, true, writer_nav_extend()); break;
     case SOLAR_OS_KEY_SHIFT_PAGE_UP: writer_page(ctx, false, true); break;
     case SOLAR_OS_KEY_SHIFT_PAGE_DOWN: writer_page(ctx, true, true); break;
-    case SOLAR_OS_KEY_HOME: writer_set_cursor(writer_line_start(writer.cursor), false); break;
-    case SOLAR_OS_KEY_END: writer_set_cursor(writer_line_end(writer.cursor), false); break;
+    case SOLAR_OS_KEY_HOME: writer_set_cursor(writer_line_start(writer.cursor), writer_nav_extend()); break;
+    case SOLAR_OS_KEY_END: writer_set_cursor(writer_line_end(writer.cursor), writer_nav_extend()); break;
     case SOLAR_OS_KEY_SHIFT_HOME: writer_set_cursor(writer_line_start(writer.cursor), true); break;
     case SOLAR_OS_KEY_SHIFT_END: writer_set_cursor(writer_line_end(writer.cursor), true); break;
-    case SOLAR_OS_KEY_CTRL_HOME: writer_set_cursor(0, false); break;
+    case SOLAR_OS_KEY_CTRL_HOME: writer_set_cursor(0, writer_nav_extend()); break;
     case SOLAR_OS_KEY_CTRL_END:
-        writer_set_cursor(solar_os_writer_buffer_length(&writer.buffer), false);
+        writer_set_cursor(solar_os_writer_buffer_length(&writer.buffer), writer_nav_extend());
         break;
     case SOLAR_OS_KEY_CTRL_SHIFT_HOME: writer_set_cursor(0, true); break;
     case SOLAR_OS_KEY_CTRL_SHIFT_END:
@@ -1094,7 +1231,9 @@ static bool writer_handle_char(solar_os_context_t *ctx, uint8_t ch)
         }
         break;
     default:
-        if (ch >= 0x20U && ch != 0x7fU) {
+        if (writer.nav_mode) {
+            writer_handle_nav(ctx, ch);
+        } else if (ch >= 0x20U && ch != 0x7fU) {
             const char value = (char)ch;
             (void)writer_insert(&value, 1);
         }
@@ -1232,7 +1371,8 @@ static void writer_draw_header(solar_os_gfx_t *gfx)
     char title[192];
     snprintf(title,
              sizeof(title),
-             "writer%s z%d %s%s",
+             "%swriter%s z%d %s%s",
+             writer.nav_mode ? (writer.nav_select ? "SEL " : "MOVE ") : "",
              writer.dirty ? "*" : "",
              writer.zoom,
              writer.display_name[0] != '\0' ? writer.display_name : "untitled.md",
@@ -1479,6 +1619,8 @@ static esp_err_t writer_start(solar_os_context_t *ctx)
     writer.recovery_available = writer_recovery_differs();
     if (writer.recovery_available) {
         writer.dialog = WRITER_DIALOG_RECOVERY;
+    } else {
+        writer_set_message("Esc moves");
     }
     writer_render(ctx);
     return ESP_OK;

@@ -3,8 +3,8 @@ id = "expansion"
 title = "Expansion drivers and attached devices"
 section = "hardware"
 summary = "Discover, attach, and detach package-gated expansion devices"
-aliases = ["devices", "drivers", "ssd1683", "epaper", "e-paper", "st7305", "ili9341", "st7796", "cvbs", "pal", "vga32", "cardkb", "keyboard", "sdmmc", "sdspi", "micro-sd", "audio-pwm", "ledc-audio", "pcm5102", "pcm5102a", "i2s-dac", "es8311", "es7210", "esp32-dac", "rfm69", "rfm69h", "rfm95", "neopixel", "ws2812", "lora", "fsk", "gfsk", "msk", "gmsk", "ook"]
-keywords = "python lua expansion device driver attach detach bindings display epaper e-paper ssd1683 st7305 ili9341 st7796 cvbs pal composite vga vga32 waveshare cardkb m5stack keyboard mouse joystick pointer input i2c sd sdmmc sdspi microsd storage oled lcd sensor peripheral audio pwm ledc pcm5102 es8311 es7210 esp32 dac i2s radio rfm69 rfm69h rfm95 neopixel ws2812 rgb led strip fsk gfsk msk gmsk ook lora"
+aliases = ["devices", "drivers", "ssd1683", "epaper", "e-paper", "st7305", "ili9341", "st7796", "cvbs", "pal", "vga32", "cardkb", "cardkb2", "keyboard", "sdmmc", "sdspi", "micro-sd", "audio-pwm", "ledc-audio", "pcm5102", "pcm5102a", "i2s-dac", "es8311", "es7210", "esp32-dac", "rfm69", "rfm69h", "rfm95", "neopixel", "ws2812", "lora", "fsk", "gfsk", "msk", "gmsk", "ook"]
+keywords = "python lua expansion device driver attach detach bindings display epaper e-paper ssd1683 st7305 ili9341 st7796 cvbs pal composite vga vga32 waveshare cardkb cardkb2 m5stack keyboard qwerty uart mouse joystick pointer input i2c sd sdmmc sdspi microsd storage oled lcd sensor peripheral audio pwm ledc pcm5102 es8311 es7210 esp32 dac i2s radio rfm69 rfm69h rfm95 neopixel ws2812 rgb led strip fsk gfsk msk gmsk ook lora"
 packages_any = ["service_expansion"]
 +++
 # Expansion drivers and attached devices
@@ -18,7 +18,8 @@ its fixed buses and default attachments, which are created at boot, shown by
 `expansion devices`, and cannot be detached. For example, Freenove `touch0` is
 an `ft6336` attachment; Waveshare `rtc0` and `environment0` use `pcf85063` and
 `shtc3`; and the supported battery boards expose `battery0` through
-`battery-adc`. TTGO VGA32 `keyboard0` is a `ps2-keyboard` attachment. Built-in
+`battery-adc`. TTGO VGA32 `keyboard0` is a `ps2-keyboard` attachment. Waveshare
+ESP32-S3-RLCD-4.2 `keyboard0` is a `cardkb` attachment on `i2c1`. Built-in
 audio also appears as `audio0`: Waveshare uses `es8311-es7210`, Freenove uses
 `es8311-duplex`, and classic ESP32 audio boards use `esp32-dac`. Generic input,
 time, sensor, battery, and audio services consume the same runtime providers
@@ -103,6 +104,25 @@ expansion detach cardkb0
 The CardKB firmware produces characters after key release. SolarOS maps its
 four navigation values to the same logical arrow keys used by PS/2 and BLE
 keyboards. The module's Fn combinations are device-specific and are ignored.
+
+An M5Stack Unit CardKB2 in its factory I2C mode uses that same address and the
+same character reads. The Waveshare ESP32-S3-RLCD-4.2 attaches fixed
+`keyboard0` at boot. Red goes to VBUS and black to GND. Yellow (SDA) goes to
+the header pin labeled TXD (GPIO43) and white (SCL) to the pin labeled RXD
+(GPIO44); that pair is `i2c1`. The pins labeled SDA and SCL are `i2c0`, and
+the same attachment probes that bus when `i2c1` is empty. Fn+Sym+1 selects
+I2C mode on the keyboard. UART mode, selected with Fn+Sym+2, is the `cardkb2`
+driver. Attach that mode at runtime on a free UART bus:
+
+```text
+expansion attach cardkb2 kbd0 uart=uart1
+input test kbd0
+expansion detach kbd0
+```
+
+For UART mode, connect the keyboard TX wire to the SolarOS RX pin and the
+keyboard RX wire to the SolarOS TX pin. Power the red wire from 5 V and share
+ground. Aa is Caps, Sym latches symbols, and Fn+D/X/Z/C are the arrow keys.
 
 RTC and environmental sensor modules use the same named-I2C lifecycle. Only one
 provider of each service type can be active at a time:

@@ -107,6 +107,33 @@
 #if SOLAR_OS_PACKAGE_APP_INVADERS
 #include "solar_os_invaders.h"
 #endif
+#if SOLAR_OS_PACKAGE_APP_SNAKE
+#include "solar_os_snake.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_TETRIS
+#include "solar_os_tetris.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_SOKOBAN
+#include "solar_os_sokoban.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_MINES
+#include "solar_os_mines.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_SCORCHED
+#include "solar_os_scorched.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_BOULDERS
+#include "solar_os_boulders.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_PIPES
+#include "solar_os_pipes.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_ROGUE
+#include "solar_os_rogue.h"
+#endif
+#if SOLAR_OS_PACKAGE_APP_MORIA
+#include "solar_os_moria.h"
+#endif
 #if SOLAR_OS_PACKAGE_APP_GAMEBOY
 #include "solar_os_gameboy.h"
 #endif
@@ -231,6 +258,33 @@ static const solar_os_app_registry_entry_t registered_apps[] = {
 #endif
 #if SOLAR_OS_PACKAGE_APP_INVADERS
     APP_ENTRY("invaders", "arcade shooter", &solar_os_invaders_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "invaders", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_SNAKE
+    APP_ENTRY("snake", "classic snake", &solar_os_snake_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "snake", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_TETRIS
+    APP_ENTRY("tetris", "classic falling blocks", &solar_os_tetris_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "tetris", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_SOKOBAN
+    APP_ENTRY("sokoban", "push the crates onto the marks", &solar_os_sokoban_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "sokoban", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_MINES
+    APP_ENTRY("mines", "uncover the field", &solar_os_mines_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "mines", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_SCORCHED
+    APP_ENTRY("scorched", "two-tank artillery", &solar_os_scorched_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "scorched", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_BOULDERS
+    APP_ENTRY("boulders", "dig, dodge rocks, take the gems", &solar_os_boulders_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "boulders", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_PIPES
+    APP_ENTRY("pipes", "lay pipe ahead of the flow", &solar_os_pipes_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "pipes", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_ROGUE
+    APP_ENTRY("rogue", "descend for the amulet", &solar_os_rogue_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "rogue", 1, 1),
+#endif
+#if SOLAR_OS_PACKAGE_APP_MORIA
+    APP_ENTRY("moria", "the mines beneath the west-gate", &solar_os_moria_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "moria", 1, 1),
 #endif
 #if SOLAR_OS_PACKAGE_APP_GAMEBOY
     APP_FILE_ENTRY("gameboy", "original Game Boy emulator", &solar_os_gameboy_app, SOLAR_OS_APP_CAP_GRAPHICS | SOLAR_OS_APP_CAP_DISPLAY, "gameboy <file.gb>", 2, 2, ".gb"),

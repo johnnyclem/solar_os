@@ -20,6 +20,19 @@ hint = "0x5f"
 required = true
 allowed = [0x5f]
 
+[drivers.cardkb2]
+summary = "UART QWERTY keyboard"
+package = "expansion_cardkb2"
+targets = ["esp32", "esp32s3"]
+capabilities = ["expansion_uart"]
+default_name = "keyboard0"
+
+[[drivers.cardkb2.bindings]]
+key = "uart"
+kind = "uart_port"
+hint = "bus"
+required = true
+
 [drivers.ssd1683]
 summary = "400x300 e-paper"
 package = "expansion_ssd1683"

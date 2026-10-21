@@ -13,6 +13,7 @@ net = false
 agent = false
 media = false
 games = false
+arcade = false
 retro = true
 python = false
 lua = false

@@ -48,6 +48,7 @@ members = [
   "expansion_sdmmc",
   "expansion_sdspi",
   "expansion_cardkb",
+  "expansion_cardkb2",
   "expansion_analog_joystick",
   "expansion_gpio_keys",
   "expansion_ps2_keyboard",
@@ -193,6 +194,31 @@ capabilities = ["gfx"]
 [groups.games]
 members = ["app_invaders"]
 triggers = ["app_invaders"]
+capabilities = ["gfx"]
+
+[groups.arcade]
+members = [
+  "app_snake",
+  "app_tetris",
+  "app_sokoban",
+  "app_mines",
+  "app_scorched",
+  "app_boulders",
+  "app_pipes",
+  "app_rogue",
+  "app_moria",
+]
+triggers = [
+  "app_snake",
+  "app_tetris",
+  "app_sokoban",
+  "app_mines",
+  "app_scorched",
+  "app_boulders",
+  "app_pipes",
+  "app_rogue",
+  "app_moria",
+]
 capabilities = ["gfx"]
 
 [groups.retro]
@@ -866,6 +892,18 @@ sources = [
 requires = ["esp_driver_i2c"]
 capabilities = ["expansion_i2c"]
 
+[packages.expansion_cardkb2]
+label = "expansion.cardkb2"
+expansion_drivers = ["solar_os_cardkb2_expansion_driver"]
+depends = ["service_expansion", "service_uart"]
+sources = [
+  "services/solar_os_cardkb2.c",
+  "services/solar_os_cardkb2_codec.c",
+  "services/solar_os_cardkb2_driver.c",
+]
+requires = ["esp_driver_uart"]
+capabilities = ["expansion_uart"]
+
 [packages.expansion_analog_joystick]
 label = "expansion.analog-joystick"
 expansion_drivers = ["solar_os_analog_joystick_expansion_driver"]
@@ -1312,6 +1350,51 @@ capabilities = ["psram", "gfx"]
 [packages.app_invaders]
 label = "app.invaders"
 sources = ["apps/solar_os_invaders.c"]
+capabilities = ["gfx"]
+
+[packages.app_snake]
+label = "app.snake"
+sources = ["apps/solar_os_snake.c"]
+capabilities = ["gfx"]
+
+[packages.app_tetris]
+label = "app.tetris"
+sources = ["apps/solar_os_tetris.c"]
+capabilities = ["gfx"]
+
+[packages.app_sokoban]
+label = "app.sokoban"
+sources = ["apps/solar_os_sokoban.c"]
+capabilities = ["gfx"]
+
+[packages.app_mines]
+label = "app.mines"
+sources = ["apps/solar_os_mines.c"]
+capabilities = ["gfx"]
+
+[packages.app_scorched]
+label = "app.scorched"
+sources = ["apps/solar_os_scorched.c"]
+capabilities = ["gfx"]
+
+[packages.app_boulders]
+label = "app.boulders"
+sources = ["apps/solar_os_boulders.c"]
+capabilities = ["gfx"]
+
+[packages.app_pipes]
+label = "app.pipes"
+sources = ["apps/solar_os_pipes.c"]
+capabilities = ["gfx"]
+
+[packages.app_rogue]
+label = "app.rogue"
+sources = ["apps/solar_os_rogue.c"]
+capabilities = ["gfx"]
+
+[packages.app_moria]
+label = "app.moria"
+sources = ["apps/solar_os_moria.c"]
 capabilities = ["gfx"]
 
 [packages.app_gameboy]

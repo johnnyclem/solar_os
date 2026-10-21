@@ -52,6 +52,12 @@ uses changed-frame partial windows.
 `expansion.cardkb` polls the M5Stack Unit CardKB at its fixed I2C address and
 publishes its character taps and navigation keys through the shared input
 service used by shells and foreground apps.
+`expansion.cardkb2` reads an M5Stack Unit CardKB2 that has been switched to
+UART mode with Fn+Sym+2. It publishes press and release events, including Aa,
+Sym, and the Fn arrow combos, through the same input service. Factory I2C mode
+uses `expansion.cardkb`. The Waveshare ESP32-S3-RLCD-4.2 attaches that I2C
+keyboard as fixed `keyboard0` on `i2c1` (header TXD GPIO43 as SDA, RXD GPIO44
+as SCL) and probes `i2c0` when that bus is empty.
 `expansion.gpio-keys`, `expansion.ps2-keyboard`, and `expansion.ps2-mouse`
 compose physical buttons, keyboards, and relative mice through the same device
 lifecycle. `expansion.analog-joystick` consumes two scalar streams and publishes
@@ -94,11 +100,13 @@ matrix.
 
 The standard selectors are `system`, `expansions`, `maintenance_apps`,
 `maintenance_jobs`, `hardware_jobs`, `audio`, `net`, `agent`, `media`, `games`,
-`retro`, `python`, `lua`, `writing`, and `utils`. Maintenance jobs contain
+`arcade`, `retro`, `python`, `lua`, `writing`, and `utils`. Maintenance jobs contain
 background logging and battery monitoring. Hardware jobs contain Bridge, DAQ,
 GPIO Keys, and SUMP for hardware diagnostics and hacking. The `writing` group contains
 Reader, Writer, Files, and Notes; general utilities contain Clock, Calculator,
-Plot, Logic, and Sheet.
+Plot, Logic, and Sheet. The `arcade` group contains Snake, Tetris, Sokoban, Mines, Scorched, Boulders,
+Pipes, Rogue, and Moria. It is enabled in the full, retro, and beta flavors.
+Invaders stays in `games`, which ships disabled.
 
 The `retro` flavor is the full firmware plus experimental emulation packages.
 Its `retro` group currently selects `app.gameboy`, which requires graphics,
