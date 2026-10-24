@@ -223,6 +223,8 @@ def derive_application_pages(
         package = "app_" + name.replace("-", "_")
         if name == "help":
             package = "app_docs"
+        if name == "onboard":
+            package = "app_agent"
         packages_any = [package] if package in known_packages else []
         summary = first_paragraph(content) or f"Use the {name} application"
         body = f"# {name}\n\n{content}\n"

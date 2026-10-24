@@ -29,6 +29,7 @@
 #endif
 #if SOLAR_OS_PACKAGE_APP_AGENT
 #include "solar_os_agent.h"
+#include "solar_os_onboard_app.h"
 #endif
 #include "solar_os_board_caps.h"
 #include "solar_os_clipboard.h"
@@ -1107,7 +1108,9 @@ static const char * const agent_subcommands[] = {
     "forget",
     "ask",
     "script",
+    "doctor",
 };
+static const char * const onboard_subcommands[] = {"check"};
 static const char * const agent_config_fields[] = {
     "endpoint",
     "model",
@@ -1596,6 +1599,7 @@ static const char * const path_email[] = {"email"};
 #endif
 #if SOLAR_OS_PACKAGE_APP_AGENT
 static const char * const path_agent[] = {"agent"};
+static const char * const path_onboard[] = {"onboard"};
 static const char * const path_agent_resume[] = {"agent", "resume"};
 static const char * const path_agent_delete[] = {"agent", "delete"};
 static const char * const path_agent_config[] = {"agent", "config"};
@@ -2935,6 +2939,7 @@ static const shell_completion_rule_t shell_completion_rules[] = {
 #endif
 #if SOLAR_OS_PACKAGE_APP_AGENT
     SHELL_COMPLETION_STATIC(path_agent, agent_subcommands),
+    SHELL_COMPLETION_STATIC(path_onboard, onboard_subcommands),
     SHELL_COMPLETION_AGENT_CONVERSATIONS(path_agent_resume),
     SHELL_COMPLETION_AGENT_CONVERSATIONS(path_agent_delete),
     SHELL_COMPLETION_STATIC(path_agent_config, agent_config_fields),
@@ -8924,6 +8929,11 @@ esp_err_t solar_os_shell_session_start(solar_os_context_t *ctx,
     solar_os_shell_io_clear(io);
     solar_os_shell_io_write_bold(io, "Welcome to SolarOS");
     solar_os_shell_io_newline(io);
+#if SOLAR_OS_PACKAGE_APP_AGENT
+    if (solar_os_onboard_needed()) {
+        solar_os_shell_io_writeln(io, "New here? Run onboard to join Wi-Fi and set up the agent.");
+    }
+#endif
     if (!run_startup || shell_run_startup_script(ctx)) {
         shell_prompt(ctx);
     }

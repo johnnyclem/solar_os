@@ -23,6 +23,21 @@ Exit behavior:
   the locally focused display. `Alt+Left` switches to the previous session.
   Either Alt key is accepted, including AltGr on compact keyboards.
 
+## onboard
+
+Guided first-run setup for the agent: Wi-Fi, server, API key, a server check,
+the model, and one test request. Each answer is saved as it is given.
+
+```text
+onboard
+onboard check
+```
+
+`agent` opens `onboard` automatically when Wi-Fi is down or no server is
+configured. Re-running `onboard` on a configured device re-checks the saved
+setup and asks only for the part that fails. `onboard check`, also `agent
+doctor`, runs the checks without prompts. `Esc` or the app-exit key exits.
+
 ## agent
 
 Native Responses/Chat-Completions LLM client and SolarOS agent control plane.
@@ -31,7 +46,8 @@ system-status, storage-listing, job-listing, display-discovery, and optional
 Python/Lua execution tools. `agent tools` shows risk, policy, and runtime
 availability.
 
-Configure the full endpoint and model, then ask a question:
+Run `onboard` for guided setup, or configure the full endpoint and model,
+then ask a question:
 
 ```text
 agent config endpoint https://api.openai.com/v1/responses

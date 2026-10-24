@@ -6,13 +6,15 @@
 #include "solar_os_agent.h"
 #include "solar_os_agent_app.h"
 #include "solar_os_agent_tools.h"
+#include "solar_os_onboard_app.h"
 #include "solar_os_shell.h"
 #include "solar_os_shell_common.h"
 #include "solar_os_shell_io.h"
+#include "solar_os_wifi.h"
 
 static const char * const agent_commands[] = {
     "help", "new", "list", "resume", "delete", "status", "tools",
-    "config", "forget", "ask", "script",
+    "config", "forget", "ask", "script", "doctor",
 };
 static const char * const agent_config_fields[] = {
     "endpoint", "model", "key", "reasoning", "tools", "max-tools",
@@ -30,6 +32,7 @@ static void agent_usage(solar_os_shell_io_t *io)
     solar_os_shell_io_writeln(io, "  agent delete SLOT");
     solar_os_shell_io_writeln(io, "  agent help");
     solar_os_shell_io_writeln(io, "  agent status");
+    solar_os_shell_io_writeln(io, "  agent doctor");
     solar_os_shell_io_writeln(io, "  agent tools");
     solar_os_shell_io_writeln(io, "  agent config endpoint URL");
     solar_os_shell_io_writeln(io, "  agent config model MODEL");
@@ -110,11 +113,48 @@ static void agent_conversations(solar_os_shell_io_t *io)
     }
 }
 
+static void agent_launch_onboard(solar_os_context_t *ctx,
+                                 solar_os_shell_io_t *io,
+                                 const char *mode)
+{
+    char arg0[] = "onboard";
+    char arg1[16];
+    strlcpy(arg1, mode, sizeof(arg1));
+    char *argv[] = {arg0, arg1};
+    const esp_err_t err =
+        solar_os_context_request_launch(ctx, &solar_os_onboard_app, 2, argv);
+    if (err == ESP_OK) {
+        solar_os_shell_session_prepare_foreground_launch(ctx, false);
+    } else {
+        solar_os_shell_io_printf(io,
+                                 "agent: onboard failed to start: %s\n",
+                                 solar_os_shell_error_text(err));
+    }
+}
+
+/* Chat and ask need Wi-Fi and a configured endpoint and model. */
+static bool agent_ready(void)
+{
+    solar_os_wifi_status_t wifi;
+    solar_os_wifi_get_status(&wifi);
+    return wifi.started && wifi.connected && wifi.has_ip && !solar_os_onboard_needed();
+}
+
 static void agent_launch(solar_os_context_t *ctx,
                          solar_os_shell_io_t *io,
                          int argc,
-                         char **argv)
+                         char **argv,
+                         bool needs_network)
 {
+    if (needs_network && !agent_ready()) {
+        if (argc >= 2 && strcmp(argv[1], "new") != 0) {
+            solar_os_shell_io_printf(io,
+                                     "agent: not set up yet; run agent %s again after setup\n",
+                                     argv[1]);
+        }
+        agent_launch_onboard(ctx, io, "--for-agent");
+        return;
+    }
     const esp_err_t err =
         solar_os_context_request_launch(ctx, &solar_os_agent_app, argc, argv);
     if (err == ESP_OK) {
@@ -304,11 +344,11 @@ void solar_os_shell_cmd_agent(solar_os_context_t *ctx, int argc, char **argv)
     }
 
     if (argc == 1) {
-        agent_launch(ctx, io, argc, argv);
+        agent_launch(ctx, io, argc, argv, true);
         return;
     }
     if (argc == 2 && strcmp(argv[1], "new") == 0) {
-        agent_launch(ctx, io, argc, argv);
+        agent_launch(ctx, io, argc, argv, true);
         return;
     }
     if (argc == 2 && strcmp(argv[1], "list") == 0) {
@@ -316,7 +356,7 @@ void solar_os_shell_cmd_agent(solar_os_context_t *ctx, int argc, char **argv)
         return;
     }
     if (argc == 3 && strcmp(argv[1], "resume") == 0) {
-        agent_launch(ctx, io, argc, argv);
+        agent_launch(ctx, io, argc, argv, true);
         return;
     }
     if (argc == 3 && strcmp(argv[1], "delete") == 0) {
@@ -344,6 +384,10 @@ void solar_os_shell_cmd_agent(solar_os_context_t *ctx, int argc, char **argv)
         agent_tools(io);
         return;
     }
+    if (argc == 2 && strcmp(argv[1], "doctor") == 0) {
+        agent_launch_onboard(ctx, io, "check");
+        return;
+    }
     if (strcmp(argv[1], "config") == 0) {
         agent_configure(io, argc, argv);
         return;
@@ -360,18 +404,18 @@ void solar_os_shell_cmd_agent(solar_os_context_t *ctx, int argc, char **argv)
         return;
     }
     if (strcmp(argv[1], "ask") == 0 && argc >= 3) {
-        agent_launch(ctx, io, argc, argv);
+        agent_launch(ctx, io, argc, argv, true);
         return;
     }
     if (strcmp(argv[1], "script") == 0 && argc >= 4) {
-        agent_launch(ctx, io, argc, argv);
+        agent_launch(ctx, io, argc, argv, false);
         return;
     }
     solar_os_shell_diag_subcommand(io,
                                    "agent",
                                    argc,
                                    argv,
-                                   "agent help|new|list|resume|delete|status|tools|config|forget|ask|script",
+                                   "agent help|new|list|resume|delete|status|tools|doctor|config|forget|ask|script",
                                    agent_commands,
                                    sizeof(agent_commands) / sizeof(agent_commands[0]));
 }

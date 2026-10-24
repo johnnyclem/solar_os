@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "esp_err.h"
+#include "solar_os_http_client.h"
 #include "solar_os_script_runner.h"
 
 #define SOLAR_OS_AGENT_ENDPOINT_MAX 256
@@ -170,6 +171,21 @@ esp_err_t solar_os_agent_conversation_visit(
     solar_os_agent_message_visit_fn visitor,
     void *user_data);
 esp_err_t solar_os_agent_conversation_delete(const char *id);
+
+/*
+ * One bounded GET for setup and diagnostics, such as the model list next to
+ * the configured endpoint. The saved API key is sent as a Bearer token, and
+ * only to a URL with the same scheme, host, and port as the configured
+ * endpoint; any other URL returns ESP_ERR_INVALID_ARG and sends nothing. The
+ * key never leaves the service. Blocking; call it from a worker task. HTTP
+ * statuses are reported in response->response. Always call
+ * solar_os_http_buffered_response_clear on the response afterwards.
+ */
+esp_err_t solar_os_agent_probe_get(const char *url,
+                                   size_t max_body_bytes,
+                                   uint32_t timeout_ms,
+                                   const volatile bool *cancel_flag,
+                                   solar_os_http_buffered_response_t *response);
 
 /* Blocking; callers should use a foreground worker task. */
 esp_err_t solar_os_agent_run(const solar_os_agent_request_t *request);
