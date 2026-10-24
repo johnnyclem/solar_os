@@ -15,7 +15,12 @@ runtimes. It exposes only tools allowed by the current firmware and tool policy.
 
 ## Configure it
 
-The Responses API is recommended for OpenAI reasoning models:
+Run `onboard`. It joins Wi-Fi, takes the server and API key, checks them,
+lists the server's models, and sends one test request. Running `agent` before
+setup opens it automatically. See `onboard` for the details.
+
+To set or change values directly, use `agent config`. The Responses API is
+recommended for OpenAI reasoning models:
 
 ```text
 agent config endpoint https://api.openai.com/v1/responses
@@ -75,6 +80,8 @@ actually starts.
 
 ## Troubleshooting
 
+- `agent doctor` checks Wi-Fi, the saved settings, the server, the model, and
+  one test request without changing anything, and names the step that fails.
 - `agent status` shows the endpoint, model, policy, request failures, and memory
   telemetry without printing the API key. It also reports how many tool calls
   the last request used from its configured budget.
@@ -87,7 +94,10 @@ actually starts.
 
 ## Quick reference
 
-Use `agent` or `agent new` for a new durable foreground conversation,
+Run `onboard` once to set up Wi-Fi, the server, the key, and the model;
+`agent` opens it automatically when it cannot start, and `agent doctor`
+re-checks a saved setup. Use `agent` or `agent new` for a new durable
+foreground conversation,
 `agent list` to inspect saved slots, `agent resume SLOT` to restore one, and
 `agent delete SLOT` to remove one. `agent ask PROMPT` makes an unsaved one-shot
 request. Configure endpoint, model, key, reasoning, tool policy, and maximum

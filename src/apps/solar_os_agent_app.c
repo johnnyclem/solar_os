@@ -903,7 +903,7 @@ static esp_err_t agent_app_start(solar_os_context_t *ctx)
         solar_os_wifi_get_status(&wifi);
         if (!wifi.started || !wifi.connected || !wifi.has_ip) {
             agent_app_writeln(agent_app_io(ctx),
-                              "Wi-Fi is not connected");
+                              "Wi-Fi is not connected; run onboard");
             solar_os_shell_io_flush(agent_app_io(ctx));
             agent_app_return_to_shell(ctx);
             return ESP_OK;
@@ -911,7 +911,7 @@ static esp_err_t agent_app_start(solar_os_context_t *ctx)
         (void)solar_os_agent_get_status(&status);
         if (!status.configured) {
             agent_app_writeln(agent_app_io(ctx),
-                              "configure endpoint and model first");
+                              "not set up yet; run onboard");
             solar_os_shell_io_flush(agent_app_io(ctx));
             agent_app_return_to_shell(ctx);
             return ESP_OK;

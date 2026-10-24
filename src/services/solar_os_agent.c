@@ -328,6 +328,79 @@ esp_err_t solar_os_agent_set_endpoint(const char *endpoint)
                           sizeof(agent.config.endpoint)) : err;
 }
 
+/* Length of "scheme://authority", or 0 when the URL has no scheme. */
+static size_t agent_url_origin_len(const char *url)
+{
+    const char *authority = strstr(url, "://");
+    if (authority == NULL || authority == url) {
+        return 0U;
+    }
+    authority += 3;
+    const char *slash = strchr(authority, '/');
+    const size_t len = slash != NULL ? (size_t)(slash - url) : strlen(url);
+    return len > (size_t)(authority - url) ? len : 0U;
+}
+
+esp_err_t solar_os_agent_probe_get(const char *url,
+                                   size_t max_body_bytes,
+                                   uint32_t timeout_ms,
+                                   const volatile bool *cancel_flag,
+                                   solar_os_http_buffered_response_t *response)
+{
+    if (response == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memset(response, 0, sizeof(*response));
+    response->response.status_code = -1;
+    if (url == NULL || !agent_endpoint_valid(url)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    esp_err_t err = solar_os_agent_init();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    char endpoint[SOLAR_OS_AGENT_ENDPOINT_MAX];
+    char api_key[SOLAR_OS_AGENT_API_KEY_MAX];
+    portENTER_CRITICAL(&agent_lock);
+    strlcpy(endpoint, agent.config.endpoint, sizeof(endpoint));
+    strlcpy(api_key, agent.config.api_key, sizeof(api_key));
+    portEXIT_CRITICAL(&agent_lock);
+
+    const size_t origin = agent_url_origin_len(endpoint);
+    if (origin == 0U || strncmp(url, endpoint, origin) != 0 ||
+        (url[origin] != '/' && url[origin] != '\0')) {
+        memset(api_key, 0, sizeof(api_key));
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char authorization[SOLAR_OS_AGENT_API_KEY_MAX + 8U];
+    solar_os_http_header_t headers[1];
+    size_t header_count = 0U;
+    if (api_key[0] != '\0') {
+        snprintf(authorization, sizeof(authorization), "Bearer %s", api_key);
+        headers[0] = (solar_os_http_header_t){
+            .name = "Authorization",
+            .value = authorization,
+        };
+        header_count = 1U;
+    }
+    const solar_os_http_request_options_t options = {
+        .url = url,
+        .method = SOLAR_OS_HTTP_METHOD_GET,
+        .headers = header_count > 0U ? headers : NULL,
+        .header_count = header_count,
+        .user_agent = "SolarOS-agent/0.1",
+        .timeout_ms = timeout_ms,
+        .deadline_ms = timeout_ms > 0U ? timeout_ms * 2U : 0U,
+        .cancel_flag = cancel_flag,
+    };
+    err = solar_os_http_perform_buffered(&options, max_body_bytes, response);
+    memset(authorization, 0, sizeof(authorization));
+    memset(api_key, 0, sizeof(api_key));
+    return err;
+}
+
 esp_err_t solar_os_agent_set_model(const char *model)
 {
     if (!agent_string_valid(model, SOLAR_OS_AGENT_MODEL_MAX, false)) {

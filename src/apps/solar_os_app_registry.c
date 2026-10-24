@@ -19,6 +19,7 @@
 #endif
 #if SOLAR_OS_PACKAGE_APP_AGENT
 #include "solar_os_agent_app.h"
+#include "solar_os_onboard_app.h"
 #endif
 #if SOLAR_OS_PACKAGE_APP_CURL
 #include "solar_os_curl.h"
@@ -173,6 +174,7 @@ static const solar_os_app_registry_entry_t registered_apps[] = {
 #endif
 #if SOLAR_OS_PACKAGE_APP_AGENT
     APP_ENTRY("agent", "native LLM agent", &solar_os_agent_app, SOLAR_OS_APP_CAP_TEXT | SOLAR_OS_APP_CAP_DISPLAY | SOLAR_OS_APP_CAP_PORT, "agent [new|resume <id>|ask <prompt...>|script <file> [args...]]", 1, 0),
+    APP_ENTRY("onboard", "set up Wi-Fi and the agent", &solar_os_onboard_app, SOLAR_OS_APP_CAP_TEXT | SOLAR_OS_APP_CAP_DISPLAY | SOLAR_OS_APP_CAP_PORT, "onboard [check]", 1, 2),
 #endif
 #if SOLAR_OS_PACKAGE_APP_CURL
     APP_ENTRY("curl", "HTTP client", &solar_os_curl_app, SOLAR_OS_APP_CAP_TEXT | SOLAR_OS_APP_CAP_DISPLAY | SOLAR_OS_APP_CAP_PORT, "curl [-L] [-o file] <URL>", 2, 0),

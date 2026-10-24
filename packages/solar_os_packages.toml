@@ -1311,6 +1311,8 @@ label = "app.agent"
 depends = ["service_agent"]
 sources = [
   "apps/solar_os_agent_app.c",
+  "apps/solar_os_onboard_app.c",
+  "apps/solar_os_onboard_logic.c",
   "shell/solar_os_shell_agent.c",
 ]
 capabilities = ["psram", "wifi"]
