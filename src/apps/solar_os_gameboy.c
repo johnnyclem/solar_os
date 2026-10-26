@@ -499,7 +499,7 @@ static void gameboy_resume(solar_os_context_t *ctx) {
 
 static uint8_t gameboy_button_for_char(uint8_t ch) {
   if (ch == SOLAR_OS_KEY_RIGHT || ch == SOLAR_OS_KEY_CTRL_RIGHT || ch == 'd' ||
-      ch == 'D' || ch == 'l' || ch == 'L') {
+      ch == 'D') {
     return JOYPAD_RIGHT;
   }
   if (ch == SOLAR_OS_KEY_LEFT || ch == SOLAR_OS_KEY_CTRL_LEFT || ch == 'a' ||
@@ -514,10 +514,10 @@ static uint8_t gameboy_button_for_char(uint8_t ch) {
       ch == 'S' || ch == 'j' || ch == 'J') {
     return JOYPAD_DOWN;
   }
-  if (ch == 'z' || ch == 'Z') {
+  if (ch == 'l' || ch == 'L' || ch == 'z' || ch == 'Z') {
     return JOYPAD_A;
   }
-  if (ch == 'x' || ch == 'X') {
+  if (ch == ';' || ch == ':' || ch == 'x' || ch == 'X') {
     return JOYPAD_B;
   }
   if (ch == '\n' || ch == '\r') {
@@ -534,12 +534,28 @@ static uint8_t gameboy_button_for_input_key(
   if (key == NULL) {
     return 0;
   }
-  /* Keep game controls at fixed physical positions across keyboard layouts. */
-  if (key->usage == 0x1dU) {
+  /*
+   * Letter keys are matched by physical HID position. A Bluetooth keyboard
+   * reports those usages, and the letter-to-character path below would
+   * otherwise drop WASD. L is A and the ;/: key is B. Z and X stay available.
+   */
+  switch (key->usage) {
+  case 0x1aU:
+    return JOYPAD_UP;
+  case 0x04U:
+    return JOYPAD_LEFT;
+  case 0x16U:
+    return JOYPAD_DOWN;
+  case 0x07U:
+    return JOYPAD_RIGHT;
+  case 0x0fU:
+  case 0x1dU:
     return JOYPAD_A;
-  }
-  if (key->usage == 0x1bU) {
+  case 0x33U:
+  case 0x1bU:
     return JOYPAD_B;
+  default:
+    break;
   }
   if (key->usage >= 0x04U && key->usage <= 0x1dU) {
     return 0;

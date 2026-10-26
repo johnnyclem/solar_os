@@ -55,9 +55,10 @@ service used by shells and foreground apps.
 `expansion.cardkb2` reads an M5Stack Unit CardKB2 that has been switched to
 UART mode with Fn+Sym+2. It publishes press and release events, including Aa,
 Sym, and the Fn arrow combos, through the same input service. Factory I2C mode
-uses `expansion.cardkb`. The Waveshare ESP32-S3-RLCD-4.2 attaches that I2C
+uses `expansion.cardkb`. The Waveshare ESP32-S3-RLCD-4.2 keeps that I2C
 keyboard as fixed `keyboard0` on `i2c1` (header TXD GPIO43 as SDA, RXD GPIO44
-as SCL) and probes `i2c0` when that bus is empty.
+as SCL) and probes `i2c0` when that bus is empty. Its `enabled` field is
+false, so boot leaves the keyboard detached.
 `expansion.gpio-keys`, `expansion.ps2-keyboard`, and `expansion.ps2-mouse`
 compose physical buttons, keyboards, and relative mice through the same device
 lifecycle. `expansion.analog-joystick` consumes two scalar streams and publishes

@@ -139,6 +139,7 @@ static solar_os_runtime_loop_stats_t runtime_loop_stats;
 static void process_app_requests(void);
 static void maybe_enter_idle_sleep(void);
 static void update_status(void);
+static bool ble_notice_owns_display(void);
 
 static uint32_t millis_u32(void)
 {
@@ -813,6 +814,365 @@ static void key_button_init(void)
     key_interrupt_ready = true;
 }
 
+#if SOLAR_OS_PACKAGE_SERVICE_BLE
+#define BLE_NOTICE_LINES 3
+#define BLE_NOTICE_LINE_LEN 40
+#define BLE_NOTICE_SUCCESS_MS 2200U
+#define BLE_NOTICE_FAILURE_MS 4000U
+
+static char ble_notice_lines[BLE_NOTICE_LINES][BLE_NOTICE_LINE_LEN];
+static int ble_notice_line_count;
+static bool ble_notice_passkey;
+static bool ble_notice_visible;
+static bool ble_notice_following;
+static uint32_t ble_notice_until_ms;
+static char ble_notice_status[80];
+static char ble_notice_shell[SOLAR_OS_CONTEXT_STATUS_MESSAGE_MAX];
+
+static bool ble_notice_owns_display(void)
+{
+    return ble_notice_visible;
+}
+
+static uint8_t ble_notice_color(uint8_t white_bit)
+{
+    if (terminal != NULL &&
+        (terminal->black_is_one != terminal->palette_inverted)) {
+        return (uint8_t)!white_bit;
+    }
+    return white_bit;
+}
+
+static void ble_notice_draw_line(u8g2_t *u8g2,
+                                 const uint8_t *font,
+                                 const char *text,
+                                 int y)
+{
+    if (u8g2 == NULL || font == NULL || text == NULL || text[0] == '\0') {
+        return;
+    }
+
+    u8g2_SetFont(u8g2, font);
+    const int width = (int)u8g2_GetDisplayWidth(u8g2);
+    int x = (width - (int)u8g2_GetUTF8Width(u8g2, text)) / 2;
+    if (x < 8) {
+        x = 8;
+    }
+    u8g2_DrawUTF8(u8g2, (u8g2_uint_t)x, (u8g2_uint_t)y, text);
+}
+
+static void ble_notice_present(void)
+{
+    if (display_u8g2 == NULL || ble_notice_line_count <= 0) {
+        return;
+    }
+
+    u8g2_t *u8g2 = display_u8g2;
+    const int width = (int)u8g2_GetDisplayWidth(u8g2);
+    const int height = (int)u8g2_GetDisplayHeight(u8g2);
+    const int mid = height / 2;
+
+    u8g2_SetDrawColor(u8g2, ble_notice_color(1));
+    u8g2_DrawBox(u8g2, 0, 0, (u8g2_uint_t)width, (u8g2_uint_t)height);
+    u8g2_SetDrawColor(u8g2, ble_notice_color(0));
+    u8g2_SetFontMode(u8g2, 1);
+    u8g2_SetFontPosBaseline(u8g2);
+
+    if (ble_notice_passkey && ble_notice_line_count >= 2) {
+        ble_notice_draw_line(u8g2,
+                             u8g2_font_solar_os_default_r_16_tf,
+                             ble_notice_lines[0],
+                             mid - 36);
+        ble_notice_draw_line(u8g2,
+                             u8g2_font_solar_os_default_b_20_tf,
+                             ble_notice_lines[1],
+                             mid + 8);
+        if (ble_notice_line_count > 2) {
+            ble_notice_draw_line(u8g2,
+                                 u8g2_font_solar_os_default_r_16_tf,
+                                 ble_notice_lines[2],
+                                 mid + 42);
+        }
+    } else if (ble_notice_line_count == 1) {
+        ble_notice_draw_line(u8g2,
+                             u8g2_font_solar_os_default_b_16_tf,
+                             ble_notice_lines[0],
+                             mid);
+    } else {
+        ble_notice_draw_line(u8g2,
+                             u8g2_font_solar_os_default_b_16_tf,
+                             ble_notice_lines[0],
+                             mid - 16);
+        ble_notice_draw_line(u8g2,
+                             u8g2_font_solar_os_default_r_16_tf,
+                             ble_notice_lines[1],
+                             mid + 16);
+    }
+
+    solar_os_display_present(u8g2, SOLAR_OS_DISPLAY_PRESENT_TEXT);
+}
+
+static void ble_notice_tell_shell(const char *line)
+{
+    if (line == NULL || line[0] == '\0' || strcmp(ble_notice_shell, line) == 0) {
+        return;
+    }
+
+    strlcpy(ble_notice_shell, line, sizeof(ble_notice_shell));
+    solar_os_context_set_status_message(&os_ctx, line);
+    if (!solar_os_sessions_foreground_is_shell() ||
+        solar_os_context_graphics_active(&os_ctx)) {
+        return;
+    }
+
+    solar_os_shell_session_t *session = solar_os_context_shell_session(&os_ctx);
+    if (session == NULL) {
+        return;
+    }
+    solar_os_shell_session_prompt(&os_ctx, session);
+}
+
+static bool ble_notice_same(bool passkey,
+                            const char *line0,
+                            const char *line1,
+                            const char *line2)
+{
+    const char *lines[BLE_NOTICE_LINES] = {line0, line1, line2};
+    int count = 0;
+
+    if (!ble_notice_visible || ble_notice_passkey != passkey) {
+        return false;
+    }
+
+    for (int i = 0; i < BLE_NOTICE_LINES; i++) {
+        if (lines[i] == NULL || lines[i][0] == '\0') {
+            continue;
+        }
+        if (count >= ble_notice_line_count ||
+            strcmp(ble_notice_lines[count], lines[i]) != 0) {
+            return false;
+        }
+        count++;
+    }
+    return count == ble_notice_line_count;
+}
+
+static void ble_notice_show(const char *line0,
+                            const char *line1,
+                            const char *line2,
+                            bool passkey,
+                            const char *shell_line,
+                            uint32_t hold_ms)
+{
+    const char *lines[BLE_NOTICE_LINES] = {line0, line1, line2};
+
+    if (ble_notice_same(passkey, line0, line1, line2)) {
+        ble_notice_until_ms = hold_ms == 0U ? 0U : millis_u32() + hold_ms;
+        ble_notice_tell_shell(shell_line);
+        if (ble_notice_visible) {
+            ble_notice_present();
+        }
+        return;
+    }
+
+    ble_notice_line_count = 0;
+    ble_notice_passkey = passkey;
+    for (int i = 0; i < BLE_NOTICE_LINES; i++) {
+        if (lines[i] == NULL || lines[i][0] == '\0') {
+            continue;
+        }
+        strlcpy(ble_notice_lines[ble_notice_line_count],
+                lines[i],
+                BLE_NOTICE_LINE_LEN);
+        ble_notice_line_count++;
+    }
+
+    ble_notice_until_ms = hold_ms == 0U ? 0U : millis_u32() + hold_ms;
+    ble_notice_visible = display_u8g2 != NULL && ble_notice_line_count > 0;
+    if (ble_notice_visible) {
+        session_overlay_until_ms = 0;
+        session_overlay_title[0] = '\0';
+    }
+    ble_notice_tell_shell(shell_line);
+    if (ble_notice_visible) {
+        ble_notice_present();
+    }
+}
+
+static void ble_notice_dismiss(void)
+{
+    const bool was_visible = ble_notice_visible;
+
+    ble_notice_visible = false;
+    ble_notice_following = false;
+    ble_notice_until_ms = 0;
+    ble_notice_passkey = false;
+    ble_notice_line_count = 0;
+    ble_notice_shell[0] = '\0';
+    if (!was_visible) {
+        return;
+    }
+
+    const uint32_t now_ms = millis_u32();
+    if (solar_os_context_graphics_active(&os_ctx)) {
+        solar_os_sessions_dispatch_resume(now_ms);
+    } else if (terminal != NULL) {
+        terminal->dirty = true;
+        last_terminal_draw_ms = 0;
+        draw_terminal_if_needed();
+    }
+}
+
+static bool ble_notice_status_is_prompt(const char *status)
+{
+    return strcmp(status, "pairing") == 0 ||
+        strcmp(status, "pairing pending") == 0;
+}
+
+static bool ble_notice_status_is_failure(const char *status)
+{
+    return strcmp(status, "no new keyboard found") == 0 ||
+        strcmp(status, "no keyboard found") == 0 ||
+        strcmp(status, "passkey input needed") == 0 ||
+        strcmp(status, "scan setup failed") == 0 ||
+        strcmp(status, "scan setup timeout") == 0 ||
+        strcmp(status, "scan start failed") == 0 ||
+        strcmp(status, "scan timeout") == 0 ||
+        strcmp(status, "scan task failed") == 0 ||
+        strcmp(status, "hid busy") == 0 ||
+        strcmp(status, "connect failed") == 0 ||
+        strcmp(status, "open failed") == 0 ||
+        strcmp(status, "open timeout") == 0 ||
+        strcmp(status, "ble no memory") == 0 ||
+        strcmp(status, "pairing stopped") == 0 ||
+        strncmp(status, "auth failed", 11) == 0;
+}
+
+static void ble_notice_apply_status(const char *status)
+{
+    uint32_t code = 0;
+    char shell[SOLAR_OS_CONTEXT_STATUS_MESSAGE_MAX];
+
+    if (sscanf(status, "type %" SCNu32 " Enter", &code) == 1) {
+        char digits[16];
+        snprintf(digits, sizeof(digits), "%" PRIu32, code);
+        snprintf(shell,
+                 sizeof(shell),
+                 "Type %" PRIu32 " on the Bluetooth keyboard, then Enter.",
+                 code);
+        ble_notice_following = true;
+        ble_notice_show("Type on the keyboard",
+                        digits,
+                        "then Enter",
+                        true,
+                        shell,
+                        0);
+        return;
+    }
+
+    if (ble_notice_status_is_prompt(status)) {
+        ble_notice_following = true;
+        ble_notice_show("Bluetooth pairing",
+                        "Put the keyboard in pair mode",
+                        NULL,
+                        false,
+                        "BLE pairing. Put the keyboard in pair mode.",
+                        0);
+        return;
+    }
+
+    if (!ble_notice_following) {
+        return;
+    }
+
+    if (strncmp(status, "connecting ", 11) == 0) {
+        const char *name = status[11] != '\0' ? status + 11 : "keyboard";
+        snprintf(shell, sizeof(shell), "Connecting to %s.", name);
+        ble_notice_show("Connecting", name, NULL, false, shell, 0);
+        return;
+    }
+
+    if (strncmp(status, "connected ", 10) == 0) {
+        ble_notice_following = false;
+        ble_notice_show("Keyboard connected",
+                        NULL,
+                        NULL,
+                        false,
+                        "Bluetooth keyboard connected.",
+                        BLE_NOTICE_SUCCESS_MS);
+        return;
+    }
+
+    if (ble_notice_status_is_failure(status)) {
+        const char *title = "Pairing failed";
+        if (strcmp(status, "no new keyboard found") == 0 ||
+            strcmp(status, "no keyboard found") == 0) {
+            title = "No keyboard found";
+        } else if (strcmp(status, "passkey input needed") == 0) {
+            title = "Code entry unavailable";
+        }
+        snprintf(shell,
+                 sizeof(shell),
+                 "BLE pairing failed: %s. Hold KEY to try again.",
+                 status);
+        ble_notice_following = false;
+        ble_notice_show(title,
+                        "Hold KEY to try again",
+                        NULL,
+                        false,
+                        shell,
+                        BLE_NOTICE_FAILURE_MS);
+    }
+}
+
+static void poll_ble_pairing_notice(void)
+{
+    char status[sizeof(ble_notice_status)];
+
+    if (!board_has(SOLAR_OS_BOARD_CAP_BLE) ||
+        !solar_os_ble_keyboard_enabled_for_current_boot()) {
+        if (ble_notice_visible) {
+            ble_notice_dismiss();
+        }
+        return;
+    }
+
+    if (ble_notice_visible &&
+        ble_notice_until_ms != 0U &&
+        (int32_t)(millis_u32() - ble_notice_until_ms) >= 0) {
+        ble_notice_dismiss();
+        return;
+    }
+
+    solar_os_ble_keyboard_get_status(status, sizeof(status));
+    if (strcmp(status, ble_notice_status) == 0) {
+        return;
+    }
+    strlcpy(ble_notice_status, status, sizeof(ble_notice_status));
+    ble_notice_apply_status(status);
+}
+
+static void ble_notice_show_start_failure(void)
+{
+    if (ble_notice_visible) {
+        return;
+    }
+
+    ble_notice_following = false;
+    ble_notice_show("Pairing did not start",
+                    "Hold KEY to try again",
+                    NULL,
+                    false,
+                    "BLE pairing did not start. Hold KEY to try again.",
+                    BLE_NOTICE_FAILURE_MS);
+}
+#else
+static bool ble_notice_owns_display(void)
+{
+    return false;
+}
+#endif
+
 static void poll_key_button(void)
 {
     if (!board_has(SOLAR_OS_BOARD_CAP_KEY)) {
@@ -865,7 +1225,13 @@ static void poll_key_button(void)
         const esp_err_t pairing_err = solar_os_ble_keyboard_start_pairing();
         last_status_update_ms = 0;
         update_status();
-        draw_terminal_if_needed();
+        poll_ble_pairing_notice();
+        if (!ble_notice_visible) {
+            draw_terminal_if_needed();
+        }
+        if (pairing_err != ESP_OK) {
+            ble_notice_show_start_failure();
+        }
         if (forget_err == ESP_OK && pairing_err == ESP_OK) {
             SOLAR_OS_LOGI(TAG, "KEY long press: BLE keyboard forgotten, pairing started");
         }
@@ -1200,12 +1566,13 @@ static void dispatch_app_tick(void)
 
     last_app_tick_ms = now_ms;
     /*
-     * A session overlay owns the display until it expires.  Animated apps can
-     * otherwise present a new frame between overlay presents, which makes the
-     * two views flash over each other.  Background jobs continue to tick; the
-     * foreground app receives a resume event when the overlay closes.
+     * A session overlay or BLE pairing notice owns the display until it
+     * expires.  Animated apps can otherwise present a new frame between those
+     * presents, which makes the two views flash over each other.  Background
+     * jobs continue to tick; the foreground app receives a resume event when
+     * the overlay closes.
      */
-    if (session_overlay_until_ms == 0U) {
+    if (!ble_notice_owns_display() && session_overlay_until_ms == 0U) {
         solar_os_sessions_dispatch_tick(now_ms);
     }
 
@@ -1324,7 +1691,8 @@ static void process_app_requests(void)
 
 static void maybe_enter_idle_sleep(void)
 {
-    if (!board_has(SOLAR_OS_BOARD_CAP_KEY) ||
+    if (ble_notice_owns_display() ||
+        !board_has(SOLAR_OS_BOARD_CAP_KEY) ||
         !solar_os_sessions_foreground_is_shell() ||
         key_pressed ||
         key_ignore_until_released) {
@@ -1503,6 +1871,16 @@ void app_main(void)
     ESP_LOGI(TAG, "boot milestone: status ready");
 
     if (terminal != NULL) {
+#if SOLAR_OS_PACKAGE_SERVICE_BLE
+        if (board_has(SOLAR_OS_BOARD_CAP_KEY) &&
+            board_has(SOLAR_OS_BOARD_CAP_BLE) &&
+            solar_os_ble_keyboard_enabled_for_current_boot() &&
+            solar_os_input_keyboard_count() == 0 &&
+            solar_os_ble_keyboard_remembered_count() == 0) {
+            solar_os_context_set_status_message(
+                &os_ctx, "Hold KEY to pair a Bluetooth keyboard.");
+        }
+#endif
         const bool shell_started = solar_os_sessions_switch_to_app(solar_os_shell_app());
         ESP_LOGI(TAG, "boot milestone: shell switch=%s", shell_started ? "ok" : "failed");
     } else {
@@ -1527,9 +1905,14 @@ void app_main(void)
         dispatch_input_sources();
         process_app_requests();
         update_status();
+#if SOLAR_OS_PACKAGE_SERVICE_BLE
+        poll_ble_pairing_notice();
+#endif
 
-        draw_terminal_if_needed();
-        draw_session_overlay_if_needed();
+        if (!ble_notice_owns_display()) {
+            draw_terminal_if_needed();
+            draw_session_overlay_if_needed();
+        }
         maybe_enter_idle_sleep();
 
         const uint32_t loop_interval_ms = solar_os_runtime_wait_ms(

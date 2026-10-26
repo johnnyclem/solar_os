@@ -180,9 +180,15 @@ do not forget the remembered keyboard or its bond. On a BLE-disabled boot, the
 unused Bluetooth controller and host memory is returned to the internal heap
 before normal service initialization.
 `ble forget` erases the remembered keyboard from SolarOS NVS and removes its BLE
-bond. On boards with a system KEY, a long press performs that forget operation
-and then starts a new pairing scan. Pairing has no user cancellation path. The
-KEY short-press power action remains separately configurable with
+bond. On boards with a system KEY, hold that button for about 1.2 seconds to
+forget the bond and start a new pairing scan. The display then reads
+"Put the keyboard in pair mode." Put the keyboard into its pairing mode during
+that scan. If the link asks for a passkey, the digits appear on the glass;
+type them on the Bluetooth keyboard and press Enter. This path works with no
+I2C keyboard attached. When a board has KEY, BLE is enabled, and neither a
+keyboard nor a remembered Bluetooth keyboard is present, the shell prints
+"Hold KEY to pair a Bluetooth keyboard." Pairing has no user cancellation path.
+The KEY short-press power action remains separately configurable with
 `setterm powerkey sleep|suspend`. Suspend is the default; another short press
 resumes the display and restores the prior power profile.
 

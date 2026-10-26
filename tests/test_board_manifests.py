@@ -102,6 +102,11 @@ class BoardManifestTest(unittest.TestCase):
             '.kind = SOLAR_OS_EXPANSION_BINDING_ADC, .role = "adc",',
             runtime_driver,
         )
+        cardkb = header.split('.driver = "cardkb"', 1)[1].split(".enabled", 1)[0]
+        self.assertIn('.name = "keyboard0"', cardkb)
+        self.assertIn('.driver = "cardkb", .name = "keyboard0"', header)
+        self.assertIn(".enabled = false", header.split('.driver = "cardkb"', 1)[1][:800])
+        self.assertIn(".enabled = true", header.split('.driver = "st7305"', 1)[1][:800])
 
     def test_pin_conflict_is_rejected(self) -> None:
         board = load_board_manifest(

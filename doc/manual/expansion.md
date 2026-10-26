@@ -106,8 +106,11 @@ four navigation values to the same logical arrow keys used by PS/2 and BLE
 keyboards. The module's Fn combinations are device-specific and are ignored.
 
 An M5Stack Unit CardKB2 in its factory I2C mode uses that same address and the
-same character reads. The Waveshare ESP32-S3-RLCD-4.2 attaches fixed
-`keyboard0` at boot. Red goes to VBUS and black to GND. Yellow (SDA) goes to
+same character reads. The Waveshare ESP32-S3-RLCD-4.2 declares fixed
+`keyboard0`, with `enabled = false`, so the I2C keyboard is not attached at
+boot. Turn that field back on and rebuild to attach it again, or attach it for
+the current boot with `expansion attach cardkb keyboard0 i2c=i2c1 addr=0x5f`.
+Red goes to VBUS and black to GND. Yellow (SDA) goes to
 the header pin labeled TXD (GPIO43) and white (SCL) to the pin labeled RXD
 (GPIO44); that pair is `i2c1`. The pins labeled SDA and SCL are `i2c0`, and
 the same attachment probes that bus when `i2c1` is empty. Fn+Sym+1 selects

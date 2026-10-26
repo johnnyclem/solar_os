@@ -104,6 +104,8 @@ typedef struct {
     const char *name;
     size_t binding_count;
     solar_os_expansion_binding_t bindings[SOLAR_OS_EXPANSION_DEVICE_BINDING_MAX];
+    /* False keeps the device in the board profile without attaching it. */
+    bool enabled;
 } solar_os_expansion_default_device_t;
 
 esp_err_t solar_os_expansion_init(void);

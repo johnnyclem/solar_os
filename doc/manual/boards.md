@@ -148,7 +148,7 @@ The current tree includes these board targets:
 
 | Target | PlatformIO env | Hardware | Highlights |
 | --- | --- | --- | --- |
-| `waveshare_esp32_s3_rlcd_4_2` | `waveshare_esp32_s3_rlcd_4_2` | Waveshare ESP32-S3-RLCD-4.2 | Primary ST7305 reflective display target with SDMMC, CDC, UART, a fixed I2C CardKB on header GPIO43/GPIO44, RTC, SHTC3, battery ADC, ES8311/ES7210 audio, expansion I2C/SPI/UART/GPIO/ADC/PWM, and runtime-routable SPI3 on GPIO1/GPIO2/GPIO3/GPIO17. |
+| `waveshare_esp32_s3_rlcd_4_2` | `waveshare_esp32_s3_rlcd_4_2` | Waveshare ESP32-S3-RLCD-4.2 | Primary ST7305 reflective display target with SDMMC, CDC, UART, a declared I2C CardKB on header GPIO43/GPIO44 with boot attachment off, RTC, SHTC3, battery ADC, ES8311/ES7210 audio, BLE keyboard host, expansion I2C/SPI/UART/GPIO/ADC/PWM, and runtime-routable SPI3 on GPIO1/GPIO2/GPIO3/GPIO17. |
 | `freenove_esp32_s3_display_4_0` | `freenove_esp32_s3_display_4_0` | Freenove ESP32-S3 Display 4.0-inch (FNK0104S) | Integrated 480x320 ST7796 display, FT6336 capacitive pointer, ES8311 speaker and microphone, four-bit SDMMC, battery ADC, native USB CDC, and UART/I2C/GPIO expansion connectors. |
 | `elecrow_crowpanel_esp32_s3_4_2_epaper` | `elecrow_crowpanel_esp32_s3_4_2_epaper` | Elecrow CrowPanel ESP32-S3 4.2-inch E-paper | ESP32-S3-WROOM-1-N8R8 target with a 400x300 SSD1683 e-paper display, microSD over SDSPI, CH340C/UART console, rotary/menu/exit controls, status LED, Wi-Fi, BLE, and expansion I2C/SPI/UART/1-Wire/GPIO/ADC/PWM. |
 | `odroid_go` | `odroid_go` | Hardkernel ODROID-GO | Classic ESP32 target with ILI9341 display, SD over VSPI/SDSPI, battery ADC, ESP32 DAC speaker, buttons, ADC D-pad, status LED, display brightness, expansion SPI/UART/GPIO/PWM, and runtime GPIO4/GPIO15. |
@@ -787,9 +787,23 @@ chip-select pins. The board-defined
 I2C bus on GPIO13/GPIO14 is fixed and is never remapped by this operation.
 
 `i2c0` is the onboard bus on GPIO13/GPIO14. `i2c1` is the CardKB bus: header
-TXD GPIO43 is SDA and header RXD GPIO44 is SCL. Both I2C controllers are
-assigned, so a runtime I2C bus is not available on this target. Free pins can
-still form a runtime UART or a named 1-Wire bus:
+TXD GPIO43 is SDA and header RXD GPIO44 is SCL. `keyboard0` stays in the board
+profile with `enabled = false`, so the I2C keyboard is not polled at boot.
+`expansion attach cardkb keyboard0 i2c=i2c1 addr=0x5f` attaches it until the
+next boot. A Bluetooth HID keyboard uses the existing host: `ble pair` scans
+and remembers one keyboard, and its keys enter the shell. BLE is on by default
+on this board. Both I2C controllers are assigned, so a runtime I2C bus is not
+available on this target.
+
+With the I2C keyboard left off, hold the side KEY button for about 1.2 seconds.
+KEY is GPIO18. The glass says when to put the keyboard in pair mode and shows
+a passkey if the keyboard asks for one; type that passkey on the Bluetooth
+keyboard and press Enter. A short press of KEY still sleeps or suspends.
+BOOT is GPIO0 and selects download mode when held during reset. PWR switches
+board power. At a shell with no keyboard attached and none remembered, the
+prompt is preceded by "Hold KEY to pair a Bluetooth keyboard."
+
+Free pins can still form a runtime UART or a named 1-Wire bus:
 
 ```text
 expansion bus create onewire onewire0 pin=gpio3

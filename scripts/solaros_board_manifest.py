@@ -432,6 +432,8 @@ def validate_board(board: dict[str, Any], drivers: dict[str, DriverDef]) -> None
             raise ManifestError(
                 f"device {name} requires capabilities: {', '.join(sorted(missing_caps))}"
             )
+        if "enabled" in device and not isinstance(device["enabled"], bool):
+            raise ManifestError(f"device {name}.enabled must be true or false")
         bindings = device.get("bindings")
         if not isinstance(bindings, dict):
             raise ManifestError(f"device {name}.bindings must be a table")
@@ -599,9 +601,11 @@ def _device_initializer(device: dict[str, Any], drivers: dict[str, DriverDef]) -
         for spec in driver.bindings
         if spec.key in bindings
     ]
+    enabled = "true" if device.get("enabled", True) else "false"
     return (
         "{.driver = " + _c_string(driver.name) + ", .name = " + _c_string(device["name"]) +
-        f", .binding_count = {len(entries)}, .bindings = {{" + ", ".join(entries) + "}}"
+        f", .binding_count = {len(entries)}, .bindings = {{" + ", ".join(entries) + "}"
+        f", .enabled = {enabled}}}"
     )
 
 

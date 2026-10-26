@@ -514,6 +514,15 @@ static esp_err_t expansion_init_board_defaults(bool early)
     for (size_t i = 0; i < SOLAR_OS_BOARD_DEFAULT_EXPANSION_DEVICE_COUNT; i++) {
         const solar_os_expansion_default_device_t *device = &board_default_devices[i];
         const solar_os_expansion_driver_t *driver = find_driver(device->driver);
+        if (!device->enabled) {
+            if (!early) {
+                ESP_LOGI("expansion",
+                         "Board device %s (%s) is disabled",
+                         device->name,
+                         device->driver);
+            }
+            continue;
+        }
         if (driver == NULL || driver->early != early || expansion_device_exists(device->name)) {
             continue;
         }

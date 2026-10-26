@@ -1081,12 +1081,13 @@ gameboy <file.gb>
 
 Controls:
 
-- Arrows control the D-pad.
-- On the CardKB2, `W`/`A`/`S`/`D` or `H`/`J`/`K`/`L` are the D-pad. `Z` is A,
-  `X` is B, `Enter` is Start, and Backspace is Select. A held key repeats, so
-  the direction stays down.
-- The physical US-Z key position is A; on a German QWERTZ keyboard this key is
-  labeled `Y`. The physical X key is B.
+- Arrows or `W`/`A`/`S`/`D` control the D-pad. `H`/`J`/`K` still move left,
+  down, and up. `L` is the A button.
+- `L` or `Z` is A. `;` or `:` or `X` is B. `Enter` is Start, and Backspace is
+  Select. A held key repeats, so the direction or button stays down.
+- The physical US-Z key position is also A; on a German QWERTZ keyboard this
+  key is labeled `Y`. The physical X key is also B. The `;`/`:` key is B on a
+  US layout.
 - `Enter` is Start; `Backspace` or `Delete` is Select.
 - `p` pauses and `r` resets.
 - `q`, `Esc`, or the app-exit key exits.

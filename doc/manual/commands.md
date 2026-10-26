@@ -316,7 +316,9 @@ built-in daylight-saving alias.
 
 `setterm powerkey` selects the dedicated KEY short-press action. `sleep`
 enters explicit light sleep; `suspend` turns off the display while jobs and
-services continue. `setterm key` is accepted as a shorter alias.
+services continue. `setterm key` is accepted as a shorter alias. A long press
+of KEY, about 1.2 seconds, forgets the remembered Bluetooth keyboard and
+starts pairing. The display shows the pairing instruction and any passkey.
 
 `setterm startup` selects the volume used for `.shell/startup` on the next boot.
 The default is `flash`. Selecting `sd` is rejected on boards without SD support.
@@ -602,7 +604,7 @@ xfer recv <port> <file> --zmodem [--append|--replace]
 | `ble` | `ble disable` | Save BLE disabled for the next boot. The current boot is unchanged. |
 | `ble` | `ble default` | Clear the saved override and use the board default on the next boot. |
 | `ble` | `ble scan` | Scan nearby BLE devices. |
-| `ble` | `ble pair` | Start keyboard pairing. |
+| `ble` | `ble pair` | Start keyboard pairing. Hold KEY for about 1.2 seconds to start the same scan when no keyboard is attached. |
 | `ble` | `ble forget` | Erase the remembered keyboard from NVS and remove its BLE bond. |
 | `ble gatt` | See below | Generic BLE GATT client. |
 | `mqtt` | See below | MQTT/MQTTS client. |
