@@ -71,8 +71,9 @@ without changing provider credentials. Responses uses its saved provider
 continuation ID; Chat Completions uses bounded local history. Slots are `1` to
 `3` on internal flash or `1` to `8` on SD; the oldest is reused when full.
 `agent ask`
-performs one unsaved request but likewise waits for `Esc` or the app-exit key
-after completion, so display-shell output is not immediately replaced by the
+performs one unsaved request. The prompt can be a full sentence; wrap it in
+double quotes when it contains an apostrophe. The answer waits for `Esc` or
+the app-exit key, so display-shell output is not immediately replaced by the
 shell screen.
 
 Use `agent config key clear` for an endpoint that does not require bearer

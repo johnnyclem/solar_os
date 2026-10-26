@@ -93,6 +93,7 @@ typedef struct {
 static const char *TAG = "agent";
 static portMUX_TYPE agent_lock = portMUX_INITIALIZER_UNLOCKED;
 static EXT_RAM_BSS_ATTR agent_state_t agent;
+static char *agent_pending_prompt;
 
 static uint32_t agent_internal_free(void)
 {
@@ -991,6 +992,52 @@ static void agent_finish_request(esp_err_t error,
         agent.failure_count++;
     }
     portEXIT_CRITICAL(&agent_lock);
+}
+
+esp_err_t solar_os_agent_set_pending_prompt(const char *prompt)
+{
+    if (!agent_string_valid(prompt, SOLAR_OS_AGENT_PROMPT_MAX, false)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    const size_t len = strlen(prompt);
+    char *copy = solar_os_memory_calloc(1,
+                                        len + 1U,
+                                        SOLAR_OS_MEMORY_EXTERNAL_PREFERRED,
+                                        "agent.pending");
+    if (copy == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+    memcpy(copy, prompt, len + 1U);
+
+    portENTER_CRITICAL(&agent_lock);
+    char *previous = agent_pending_prompt;
+    agent_pending_prompt = copy;
+    portEXIT_CRITICAL(&agent_lock);
+
+    if (previous != NULL) {
+        memset(previous, 0, strlen(previous));
+        solar_os_memory_free(previous);
+    }
+    return ESP_OK;
+}
+
+char *solar_os_agent_take_pending_prompt(void)
+{
+    portENTER_CRITICAL(&agent_lock);
+    char *pending = agent_pending_prompt;
+    agent_pending_prompt = NULL;
+    portEXIT_CRITICAL(&agent_lock);
+    return pending;
+}
+
+void solar_os_agent_clear_pending_prompt(void)
+{
+    char *pending = solar_os_agent_take_pending_prompt();
+    if (pending == NULL) {
+        return;
+    }
+    memset(pending, 0, strlen(pending));
+    solar_os_memory_free(pending);
 }
 
 esp_err_t solar_os_agent_run(const solar_os_agent_request_t *request)

@@ -39,6 +39,8 @@ the welcome line.
 5. **Model.** The models the server offers are listed, newest version numbers
    first, with a default marked `*`. Enter picks it. Any name can be typed,
    including one not shown. Servers without a model list ask for the name.
+   If the list is too large to download whole, the models that arrived are
+   shown and any other name can still be typed.
 6. **Test request.** One short prompt goes through the same path `agent` uses.
    A rejected model or key returns to that step.
 7. **Done.** Enter starts the agent. `c` changes the server, key, or model.

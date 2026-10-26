@@ -77,6 +77,15 @@ bool solar_os_onboard_parse_models(const char *json,
                                    size_t json_len,
                                    const char *preferred,
                                    solar_os_onboard_model_list_t *list);
+/*
+ * Same parser, but a download that ends in the middle of the document is
+ * accepted once at least one model object is complete. A complete document
+ * with trailing junk is still rejected. Used when the HTTP body was cut off.
+ */
+bool solar_os_onboard_parse_models_partial(const char *json,
+                                           size_t json_len,
+                                           const char *preferred,
+                                           solar_os_onboard_model_list_t *list);
 bool solar_os_onboard_model_list_contains(
     const solar_os_onboard_model_list_t *list,
     const char *id);

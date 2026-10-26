@@ -33,7 +33,9 @@ SOLAR_OS_TASK_REQUIRE_FOREGROUND_STACK(ONBOARD_TASK_STACK);
 #define ONBOARD_WIFI_FAIL_GRACE_MS 3000U
 #define ONBOARD_WIFI_POLL_MS 250U
 #define ONBOARD_HTTP_TIMEOUT_MS 10000U
-#define ONBOARD_MODELS_BODY_MAX (96U * 1024U)
+/* OpenAI's model list is larger than a small page. 256 KiB still fits in
+ * PSRAM; anything past that is parsed from the prefix that arrived. */
+#define ONBOARD_MODELS_BODY_MAX (256U * 1024U)
 #define ONBOARD_INPUT_MAX SOLAR_OS_AGENT_ENDPOINT_MAX
 #define ONBOARD_LABEL_WIDTH 15U
 #define ONBOARD_REPLY_MAX 64U
@@ -89,6 +91,7 @@ typedef struct {
     solar_os_onboard_check_t check;
     int http_status;
     bool models_listed;
+    bool models_cutoff;
     uint32_t check_ms;
     solar_os_onboard_model_list_t models;
     /* test request */
@@ -353,6 +356,7 @@ static void onboard_job_check(void)
     r->check = SOLAR_OS_ONBOARD_CHECK_HTTP_ERROR;
     r->http_status = 0;
     r->models_listed = false;
+    r->models_cutoff = false;
     memset(&r->models, 0, sizeof(r->models));
     const int64_t start = esp_timer_get_time();
 
@@ -397,11 +401,19 @@ static void onboard_job_check(void)
             solar_os_onboard_preset_at(onboard.preset >= 0 ? (size_t)onboard.preset : SIZE_MAX);
         const char *preferred = status.model[0] != '\0' ? status.model :
             (preset != NULL ? preset->default_model : NULL);
-        r->models_listed = !response.body_truncated &&
-            solar_os_onboard_parse_models((const char *)response.body,
-                                          response.body_len,
-                                          preferred,
-                                          &r->models);
+        const char *body = (const char *)response.body;
+        r->models_listed = solar_os_onboard_parse_models(body,
+                                                         response.body_len,
+                                                         preferred,
+                                                         &r->models);
+        if (!r->models_listed && response.body_truncated &&
+            solar_os_onboard_parse_models_partial(body,
+                                                  response.body_len,
+                                                  preferred,
+                                                  &r->models)) {
+            r->models_listed = true;
+            r->models_cutoff = true;
+        }
         if (!r->models_listed) {
             /* The server answered with something other than a model list. */
             r->check = SOLAR_OS_ONBOARD_CHECK_NO_MODEL_LIST;
@@ -879,6 +891,13 @@ static void onboard_enter_model(void)
     const bool listed = onboard.result.models_listed;
     const bool current_listed = solar_os_onboard_model_list_contains(models, status.model);
 
+    if (onboard.result.models_cutoff && status.model[0] != '\0' &&
+        !onboard.reconfigure && !current_listed) {
+        onboard_line("Model", "%s", status.model);
+        onboard_say("The model list was cut off, so this name was not confirmed.");
+        onboard_enter_smoke();
+        return;
+    }
     if (status.model[0] != '\0' && !onboard.reconfigure &&
         (!listed || current_listed)) {
         /* A saved model the server offers, or a server that lists nothing. */
@@ -918,6 +937,9 @@ static void onboard_enter_model(void)
     if (models->seen > models->count) {
         onboard_say("%u more on the server; type any name to use one of those.",
                     (unsigned)(models->seen - models->count));
+    }
+    if (onboard.result.models_cutoff) {
+        onboard_say("The list was cut off. Type a name if the one you want is missing.");
     }
     onboard_prompt(ONBOARD_STEP_MODEL, false, "Model number or name (Enter picks *):");
 }

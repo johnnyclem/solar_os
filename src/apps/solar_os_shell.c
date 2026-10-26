@@ -91,6 +91,9 @@
 
 #define SHELL_INPUT_MAX 192
 #define SHELL_ARG_MAX 20
+/* agent ask joins every word of one shell line. A 191-character line can hold
+ * more words than the ordinary 20-argument command limit. */
+#define SHELL_ASK_ARG_MAX 96
 #define SHELL_PATH_MAX SOLAR_OS_STORAGE_PATH_MAX
 #define SHELL_HISTORY_LEN 12
 #define SHELL_STATE_DIR ".shell"
@@ -8599,6 +8602,31 @@ static void SHELL_NOINLINE shell_report_unknown_command(
     solar_os_shell_diag_set_source(io, NULL, 0);
 }
 
+static bool shell_line_is_agent_ask(const char *line)
+{
+    if (line == NULL) {
+        return false;
+    }
+    while (*line == ' ' || *line == '\t') {
+        line++;
+    }
+    if (strncmp(line, "agent", 5) != 0) {
+        return false;
+    }
+    line += 5;
+    if (*line != ' ' && *line != '\t') {
+        return false;
+    }
+    while (*line == ' ' || *line == '\t') {
+        line++;
+    }
+    if (strncmp(line, "ask", 3) != 0) {
+        return false;
+    }
+    line += 3;
+    return *line == '\0' || *line == ' ' || *line == '\t';
+}
+
 static bool shell_execute_line(solar_os_context_t *ctx,
                                const char *line,
                                bool add_history,
@@ -8606,7 +8634,8 @@ static bool shell_execute_line(solar_os_context_t *ctx,
                                size_t line_number)
 {
     char command[SHELL_INPUT_MAX];
-    char *argv[SHELL_ARG_MAX];
+    char *argv_storage[SHELL_ARG_MAX];
+    char *ask_argv[SHELL_ASK_ARG_MAX];
 
     shell_session(ctx)->builtin_suppressed_prompt = false;
 
@@ -8624,13 +8653,17 @@ static bool shell_execute_line(solar_os_context_t *ctx,
     }
 
     strlcpy(command, line, sizeof(command));
+    const bool agent_ask = shell_line_is_agent_ask(command);
+    char **argv = agent_ask ? ask_argv : argv_storage;
+    const int argv_max = agent_ask ? SHELL_ASK_ARG_MAX : SHELL_ARG_MAX;
     const solar_os_shell_parse_result_t parsed =
-        solar_os_shell_tokenize(command, argv, SHELL_ARG_MAX);
+        solar_os_shell_tokenize(command, argv, argv_max);
     if (parsed.error != SOLAR_OS_SHELL_PARSE_OK) {
         char problem[128];
+        const char *hint = NULL;
         if (parsed.error == SOLAR_OS_SHELL_PARSE_TOO_MANY_ARGUMENTS) {
             snprintf(problem, sizeof(problem), "too many arguments; maximum is %u",
-                     (unsigned)SHELL_ARG_MAX);
+                     (unsigned)argv_max);
         } else if (parsed.error == SOLAR_OS_SHELL_PARSE_UNSUPPORTED_OPERATOR) {
             snprintf(problem,
                      sizeof(problem),
@@ -8642,11 +8675,15 @@ static bool shell_execute_line(solar_os_context_t *ctx,
                      "%s at column %u",
                      solar_os_shell_parse_error_text(parsed.error),
                      (unsigned)(parsed.column + 1U));
+            if (agent_ask &&
+                parsed.error == SOLAR_OS_SHELL_PARSE_UNTERMINATED_SINGLE_QUOTE) {
+                hint = "wrap the prompt in double quotes when it contains an apostrophe";
+            }
         }
         if (source != NULL) {
             solar_os_shell_io_printf(io, "%s:%u: ", source, (unsigned)line_number);
         }
-        solar_os_shell_diag_problem(io, "shell", problem, NULL, NULL);
+        solar_os_shell_diag_problem(io, "shell", problem, NULL, hint);
         return true;
     }
     const int argc = parsed.argc;

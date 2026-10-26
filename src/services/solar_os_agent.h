@@ -187,6 +187,15 @@ esp_err_t solar_os_agent_probe_get(const char *url,
                                    const volatile bool *cancel_flag,
                                    solar_os_http_buffered_response_t *response);
 
+/*
+ * Holds one ask prompt outside the app argv table. The shell joins the words
+ * and the agent app takes the buffer in start(). The returned pointer is an
+ * allocation the caller frees with solar_os_memory_free.
+ */
+esp_err_t solar_os_agent_set_pending_prompt(const char *prompt);
+char *solar_os_agent_take_pending_prompt(void);
+void solar_os_agent_clear_pending_prompt(void);
+
 /* Blocking; callers should use a foreground worker task. */
 esp_err_t solar_os_agent_run(const solar_os_agent_request_t *request);
 esp_err_t solar_os_agent_cancel(void);

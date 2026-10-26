@@ -140,6 +140,80 @@ static bool agent_ready(void)
     return wifi.started && wifi.connected && wifi.has_ip && !solar_os_onboard_needed();
 }
 
+/* The shell line is at most 191 characters, so the joined prompt fits here. */
+#define AGENT_ASK_PROMPT_MAX 192U
+
+static void agent_launch(solar_os_context_t *ctx,
+                         solar_os_shell_io_t *io,
+                         int argc,
+                         char **argv,
+                         bool needs_network);
+
+static bool agent_join_prompt(int argc, char **argv, char *out, size_t out_len)
+{
+    size_t used = 0;
+    out[0] = '\0';
+    for (int i = 2; i < argc; i++) {
+        const char *arg = argv[i] != NULL ? argv[i] : "";
+        const size_t len = strlen(arg);
+        const size_t separator = used > 0U ? 1U : 0U;
+        if (used + separator + len >= out_len) {
+            out[0] = '\0';
+            return false;
+        }
+        if (separator != 0U) {
+            out[used++] = ' ';
+        }
+        memcpy(out + used, arg, len);
+        used += len;
+        out[used] = '\0';
+    }
+    return used > 0U;
+}
+
+static void agent_launch_ask(solar_os_context_t *ctx,
+                             solar_os_shell_io_t *io,
+                             int argc,
+                             char **argv)
+{
+    if (!agent_ready()) {
+        agent_launch(ctx, io, argc, argv, true);
+        return;
+    }
+
+    if (argc < 3) {
+        solar_os_shell_io_writeln(io, "agent: ask needs a prompt");
+        return;
+    }
+    char prompt[AGENT_ASK_PROMPT_MAX];
+    if (!agent_join_prompt(argc, argv, prompt, sizeof(prompt))) {
+        solar_os_shell_io_writeln(io, "agent: prompt is too long");
+        return;
+    }
+    const esp_err_t set_err = solar_os_agent_set_pending_prompt(prompt);
+    memset(prompt, 0, sizeof(prompt));
+    if (set_err != ESP_OK) {
+        solar_os_shell_io_printf(io,
+                                 "agent: could not keep the prompt: %s\n",
+                                 solar_os_shell_error_text(set_err));
+        return;
+    }
+
+    char arg0[] = "agent";
+    char arg1[] = "ask";
+    char *launch_argv[] = {arg0, arg1};
+    const esp_err_t err =
+        solar_os_context_request_launch(ctx, &solar_os_agent_app, 2, launch_argv);
+    if (err == ESP_OK) {
+        solar_os_shell_session_prepare_foreground_launch(ctx, false);
+    } else {
+        solar_os_agent_clear_pending_prompt();
+        solar_os_shell_io_printf(io,
+                                 "agent: launch failed: %s\n",
+                                 solar_os_shell_error_text(err));
+    }
+}
+
 static void agent_launch(solar_os_context_t *ctx,
                          solar_os_shell_io_t *io,
                          int argc,
@@ -404,7 +478,7 @@ void solar_os_shell_cmd_agent(solar_os_context_t *ctx, int argc, char **argv)
         return;
     }
     if (strcmp(argv[1], "ask") == 0 && argc >= 3) {
-        agent_launch(ctx, io, argc, argv, true);
+        agent_launch_ask(ctx, io, argc, argv);
         return;
     }
     if (strcmp(argv[1], "script") == 0 && argc >= 4) {

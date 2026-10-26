@@ -378,7 +378,8 @@ sessions and gives its space to the terminal. `show` restores it. The default is
 | Command | Usage | Description |
 | --- | --- | --- |
 | `apps` | `apps` | List registered foreground apps compiled into the firmware. |
-| `agent` | `agent`; `agent new`; `agent ask PROMPT...` | Open a new native LLM agent TUI or make one unsaved foreground request. |
+| `onboard` | `onboard`; `onboard check` | Join Wi-Fi and set up the agent. `onboard check` runs the same checks as `agent doctor`. |
+| `agent` | `agent`; `agent new`; `agent ask PROMPT...` | Open a new native LLM agent TUI or make one unsaved foreground request. A prompt can be a full sentence; wrap it in double quotes when it contains an apostrophe. |
 | `agent` | `agent list`; `agent resume SLOT`; `agent delete SLOT` | List, restore, or delete durable local conversation slots. |
 | `agent` | `agent status`; `agent tools` | Inspect provider state, request statistics, typed tools, risk, and policy. |
 | `agent` | `agent doctor` | Check Wi-Fi, settings, server, model, and one test request without changing anything. |

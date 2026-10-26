@@ -187,6 +187,18 @@ static void test_parse_models(void)
     /* Length bounds the scan even without a terminator in range. */
     const char *truncated = "{\"data\":[{\"id\":\"abc\"}]}";
     assert(!solar_os_onboard_parse_models(truncated, 12, NULL, &list));
+    assert(!solar_os_onboard_parse_models_partial(truncated, 12, NULL, &list));
+
+    /* A cut-off download keeps models whose objects were complete. */
+    const char *cutoff = "{\"data\":[{\"id\":\"gpt-a\"},{\"id\":\"gpt-b";
+    assert(!solar_os_onboard_parse_models(cutoff, strlen(cutoff), NULL, &list));
+    assert(solar_os_onboard_parse_models_partial(cutoff, strlen(cutoff), NULL, &list));
+    assert(list.count == 1);
+    assert(strcmp(list.ids[0], "gpt-a") == 0);
+    assert(solar_os_onboard_parse_models_partial(json, strlen(json), "gpt-a", &list));
+    assert(strcmp(list.ids[0], "gpt-a") == 0);
+    const char *junk = "{\"data\":[{\"id\":\"x\"]} garbage";
+    assert(!solar_os_onboard_parse_models_partial(junk, strlen(junk), NULL, &list));
 
     /* Deep nesting is rejected instead of recursing without bound. */
     char deep[200];

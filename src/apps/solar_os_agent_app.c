@@ -247,6 +247,12 @@ static void agent_app_print_status(solar_os_context_t *ctx)
 
 static esp_err_t agent_app_build_prompt(solar_os_context_t *ctx)
 {
+    char *pending = solar_os_agent_take_pending_prompt();
+    if (pending != NULL) {
+        agent_app.prompt = pending;
+        return ESP_OK;
+    }
+
     const int argc = solar_os_context_argc(ctx);
     if (argc < 3) {
         return ESP_ERR_INVALID_ARG;
@@ -863,6 +869,10 @@ static esp_err_t agent_app_submit_chat(solar_os_context_t *ctx)
 static esp_err_t agent_app_start(solar_os_context_t *ctx)
 {
     if (agent_app.task != NULL && !agent_app.task_done) {
+        if (solar_os_context_argc(ctx) >= 2 &&
+            strcmp(solar_os_context_argv(ctx, 1), "ask") == 0) {
+            solar_os_agent_clear_pending_prompt();
+        }
         agent_app_writeln(agent_app_io(ctx),
                           "previous request is still stopping");
         solar_os_shell_io_flush(agent_app_io(ctx));
@@ -882,7 +892,7 @@ static esp_err_t agent_app_start(solar_os_context_t *ctx)
     const bool resume_mode = argc == 3 &&
         strcmp(solar_os_context_argv(ctx, 1), "resume") == 0;
     const bool chat_mode = argc == 1 || new_mode || resume_mode;
-    const bool ask_mode = argc >= 3 &&
+    const bool ask_mode = argc >= 2 &&
         strcmp(solar_os_context_argv(ctx, 1), "ask") == 0;
     const bool script_mode = argc >= 4 &&
         strcmp(solar_os_context_argv(ctx, 1), "script") == 0;
@@ -902,6 +912,9 @@ static esp_err_t agent_app_start(solar_os_context_t *ctx)
         solar_os_wifi_status_t wifi;
         solar_os_wifi_get_status(&wifi);
         if (!wifi.started || !wifi.connected || !wifi.has_ip) {
+            if (ask_mode) {
+                solar_os_agent_clear_pending_prompt();
+            }
             agent_app_writeln(agent_app_io(ctx),
                               "Wi-Fi is not connected; run onboard");
             solar_os_shell_io_flush(agent_app_io(ctx));
@@ -910,6 +923,9 @@ static esp_err_t agent_app_start(solar_os_context_t *ctx)
         }
         (void)solar_os_agent_get_status(&status);
         if (!status.configured) {
+            if (ask_mode) {
+                solar_os_agent_clear_pending_prompt();
+            }
             agent_app_writeln(agent_app_io(ctx),
                               "not set up yet; run onboard");
             solar_os_shell_io_flush(agent_app_io(ctx));

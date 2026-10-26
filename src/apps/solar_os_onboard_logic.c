@@ -504,6 +504,8 @@ static bool onboard_parse_model_entry(onboard_json_t *j,
         j->p++;
         return true;
     }
+    char id[SOLAR_OS_ONBOARD_MODEL_MAX];
+    bool have_id = false;
     while (j->p < j->end) {
         char key[8];
         bool key_fits = false;
@@ -517,19 +519,11 @@ static bool onboard_parse_model_entry(onboard_json_t *j,
         j->p++;
         json_skip_ws(j);
         if (key_fits && strcmp(key, "id") == 0 && j->p < j->end && *j->p == '"') {
-            char id[SOLAR_OS_ONBOARD_MODEL_MAX];
             bool id_fits = false;
             if (!json_string(j, id, sizeof(id), &id_fits)) {
                 return false;
             }
-            if (id_fits && onboard_is_chat_model(id)) {
-                list->seen++;
-                if (preferred != NULL && strcmp(id, preferred) == 0) {
-                    *preferred_found = true;
-                } else {
-                    onboard_rank_insert(list, id);
-                }
-            }
+            have_id = id_fits && onboard_is_chat_model(id);
         } else if (!json_skip_value(j, 2)) {
             return false;
         }
@@ -541,6 +535,14 @@ static bool onboard_parse_model_entry(onboard_json_t *j,
         }
         if (j->p < j->end && *j->p == '}') {
             j->p++;
+            if (have_id) {
+                list->seen++;
+                if (preferred != NULL && strcmp(id, preferred) == 0) {
+                    *preferred_found = true;
+                } else {
+                    onboard_rank_insert(list, id);
+                }
+            }
             return true;
         }
         return false;
@@ -551,7 +553,8 @@ static bool onboard_parse_model_entry(onboard_json_t *j,
 static bool onboard_parse_data_array(onboard_json_t *j,
                                      const char *preferred,
                                      bool *preferred_found,
-                                     solar_os_onboard_model_list_t *list)
+                                     solar_os_onboard_model_list_t *list,
+                                     bool partial)
 {
     if (j->p >= j->end || *j->p != '[') {
         return false;
@@ -571,7 +574,7 @@ static bool onboard_parse_data_array(onboard_json_t *j,
             ok = json_skip_value(j, 1);
         }
         if (!ok) {
-            return false;
+            return partial && j->p >= j->end && list->seen > 0U;
         }
         json_skip_ws(j);
         if (j->p < j->end && *j->p == ',') {
@@ -582,15 +585,16 @@ static bool onboard_parse_data_array(onboard_json_t *j,
             j->p++;
             return true;
         }
-        return false;
+        return partial && j->p >= j->end && list->seen > 0U;
     }
-    return false;
+    return partial && list->seen > 0U;
 }
 
 static bool onboard_parse_models(const char *json,
                                  size_t json_len,
                                  const char *preferred,
-                                 solar_os_onboard_model_list_t *list)
+                                 solar_os_onboard_model_list_t *list,
+                                 bool partial)
 {
     if (json == NULL || json_len == 0U) {
         return false;
@@ -621,17 +625,22 @@ static bool onboard_parse_models(const char *json,
         j.p++;
         json_skip_ws(&j);
         if (key_fits && strcmp(key, "data") == 0) {
-            if (!onboard_parse_data_array(&j, preferred, &preferred_found, list)) {
+            if (!onboard_parse_data_array(&j, preferred, &preferred_found, list, partial)) {
                 return false;
             }
             saw_data = true;
         } else if (!json_skip_value(&j, 1)) {
+            if (partial && j.p >= j.end && saw_data) {
+                break;
+            }
             return false;
         }
         json_skip_ws(&j);
         if (j.p < j.end && *j.p == ',') {
             j.p++;
             json_skip_ws(&j);
+        } else if (partial && j.p >= j.end && saw_data) {
+            break;
         } else if (j.p >= j.end || *j.p != '}') {
             return false;
         }
@@ -663,7 +672,24 @@ bool solar_os_onboard_parse_models(const char *json,
         return false;
     }
     memset(list, 0, sizeof(*list));
-    if (!onboard_parse_models(json, json_len, preferred, list)) {
+    if (!onboard_parse_models(json, json_len, preferred, list, false)) {
+        memset(list, 0, sizeof(*list));
+        return false;
+    }
+    return true;
+}
+
+bool solar_os_onboard_parse_models_partial(const char *json,
+                                           size_t json_len,
+                                           const char *preferred,
+                                           solar_os_onboard_model_list_t *list)
+{
+    if (list == NULL) {
+        return false;
+    }
+    memset(list, 0, sizeof(*list));
+    if (!onboard_parse_models(json, json_len, preferred, list, true) ||
+        list->seen == 0U) {
         memset(list, 0, sizeof(*list));
         return false;
     }

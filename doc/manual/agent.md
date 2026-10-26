@@ -57,7 +57,9 @@ When all slots are occupied, a new conversation replaces the oldest one.
 saved provider response ID; Chat Completions endpoints receive a bounded local
 message window. Bare `agent` always starts a new conversation.
 
-Use `agent ask PROMPT` for one request. It leaves the answer visible until you
+Use `agent ask PROMPT` for one request. The prompt can be a full sentence.
+Wrap it in double quotes when it contains an apostrophe, because a single
+quote starts a shell string. It leaves the answer visible until you
 press `Esc` or the app-exit key; one-request answers are not added to the
 conversation store.
 
